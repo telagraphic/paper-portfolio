@@ -1,0 +1,70 @@
+@layer components {
+  .listing-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .listing-detail h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 400;
+    text-wrap: balance;
+  }
+
+  .listing-caption,
+  .listing-detail .chart-frame {
+    margin: 0;
+    color: var(--color-muted);
+  }
+
+  .listing-caption {
+    text-wrap: pretty;
+  }
+
+  .listing-detail .chart-frame {
+    display: grid;
+    height: 220px;
+    place-items: center;
+    border-radius: 12px;
+    background: light-dark(rgb(28 25 21 / 0.04), rgb(243 239 230 / 0.04));
+    box-shadow: var(--shadow-border);
+  }
+
+  .listing-detail dl {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    margin: 0;
+  }
+
+  .listing-detail div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .listing-detail dt {
+    color: var(--color-muted);
+  }
+
+  .listing-detail dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+
+  .listing-detail .up {
+    color: var(--color-up);
+  }
+
+  .listing-detail .down {
+    color: var(--color-down);
+  }
+
+  @media (max-width: 800px) {
+    .listing-detail dl {
+      grid-template-columns: 1fr;
+    }
+  }
+}

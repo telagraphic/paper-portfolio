@@ -1,0 +1,29 @@
+@layer components {
+  .page,
+  .book-status {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    max-width: 72rem;
+    padding: 24px;
+  }
+
+  .book-status {
+    margin: 0;
+    color: var(--color-muted);
+    text-wrap: pretty;
+  }
+
+  .book-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(16rem, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 800px) {
+    .book-split {
+      grid-template-columns: 1fr;
+    }
+  }
+}

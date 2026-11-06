@@ -1,0 +1,63 @@
+@layer components {
+  .book-figures {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .book-figures h1 {
+    margin: 0;
+    font-size: 2.25rem;
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    text-wrap: balance;
+  }
+
+  .book-opened {
+    margin: 0;
+    color: var(--color-muted);
+    text-wrap: pretty;
+  }
+
+  .book-figures dl {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px 24px;
+    margin: 0;
+  }
+
+  .book-figures div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .book-figures dt {
+    color: var(--color-muted);
+  }
+
+  .book-figures dd {
+    width: var(--column-num);
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .book-figures .up {
+    color: var(--color-up);
+  }
+
+  .book-figures .down {
+    color: var(--color-down);
+  }
+
+  @media (max-width: 700px) {
+    .book-figures h1 {
+      font-size: 1.75rem;
+    }
+
+    .book-figures dl {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+}

@@ -1,0 +1,59 @@
+@layer reset, tokens, components;
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+  }
+}
+
+@layer tokens {
+  @font-face {
+    font-family: "Geist Serif";
+    src: url("../../node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2")
+      format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  :root {
+    color-scheme: light dark;
+    --font-serif: "Geist Serif", "Iowan Old Style", Palatino, Georgia, serif;
+    --color-bg: light-dark(#f3efe6, #14120f);
+    --color-fg: light-dark(#1c1915, #f3efe6);
+    --color-muted: light-dark(#5e584e, #b7b0a4);
+    --color-up: light-dark(#0b6a30, #8fd4a8);
+    --color-down: light-dark(#8f1d1d, #f3b1b1);
+    --color-selected: light-dark(#e7e0d4, #2a241c);
+    --color-line: light-dark(rgb(28 25 21 / 0.12), rgb(243 239 230 / 0.16));
+    --column-num: 9rem;
+    --radius: 8px;
+    --shadow-border:
+      0 0 0 1px light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08)),
+      0 1px 2px -1px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0)),
+      0 2px 4px light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0));
+    --shadow-border-hover:
+      0 0 0 1px light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.13)),
+      0 1px 2px -1px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0)),
+      0 2px 4px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0));
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100vh;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-serif);
+    font-variant-numeric: tabular-nums;
+  }
+}

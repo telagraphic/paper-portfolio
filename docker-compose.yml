@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_PATH: /data/book.sqlite
+      CLIENT_DIR: /app/dist/client
+      EODHD_API_KEY: ${EODHD_API_KEY:-}
+    volumes:
+      - book:/data
+
+volumes:
+  book:
