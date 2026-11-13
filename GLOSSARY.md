@@ -16,6 +16,10 @@ _Avoid_: Holding, line
 A common stock or ETF on one exchange, named by its symbol together with that exchange.
 _Avoid_: Ticker, stock
 
+**Name**:
+The words the feed uses for a listing, apart from its symbol.
+_Avoid_: Title, company
+
 **Trade**:
 A buy or a sell of a whole number of shares of one listing at a fill.
 _Avoid_: Purchase, order

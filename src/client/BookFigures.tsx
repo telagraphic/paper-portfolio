@@ -1,5 +1,6 @@
 import type { BookView } from "../book/book";
 import { formatOpened, formatUsdOrBlank, gainTone } from "./format";
+import { MorphValue } from "./MorphValue";
 
 export function BookFigures({ book }: { book: BookView }) {
   const figures = [
@@ -11,13 +12,14 @@ export function BookFigures({ book }: { book: BookView }) {
 
   return (
     <section className="book-figures" aria-label="Paper portfolio">
-      <h1>Paper portfolio</h1>
       <p className="book-opened">Opened {formatOpened(book.createdAt)}</p>
       <dl>
         {figures.map((figure) => (
           <div key={figure.label}>
             <dt>{figure.label}</dt>
-            <dd className={figure.signed ? gainTone(figure.value) : undefined}>{formatUsdOrBlank(figure.value)}</dd>
+            <dd className={figure.label === "Equity" ? "book-equity" : figure.signed ? gainTone(figure.value) : undefined}>
+              <MorphValue>{formatUsdOrBlank(figure.value)}</MorphValue>
+            </dd>
           </div>
         ))}
       </dl>

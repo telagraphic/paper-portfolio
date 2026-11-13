@@ -1,34 +1,16 @@
 @layer components {
   .equity-chart {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
     margin: 0;
   }
 
-  .equity-chart h2 {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 400;
-    text-wrap: balance;
-  }
-
-  .equity-chart p,
-  .equity-chart .chart-frame {
-    margin: 0;
-    color: var(--color-muted);
-  }
-
-  .equity-chart p {
-    text-wrap: pretty;
-  }
-
-  .equity-chart .chart-frame {
+  .equity-chart .chart-frame,
+  .listing-detail .chart-frame {
     display: grid;
-    height: 220px;
+    height: 280px;
     place-items: center;
     border-radius: 12px;
     background: light-dark(rgb(28 25 21 / 0.04), rgb(243 239 230 / 0.04));
     box-shadow: var(--shadow-border);
+    color: var(--color-muted);
   }
 }

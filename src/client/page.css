@@ -14,16 +14,115 @@
     text-wrap: pretty;
   }
 
-  .book-split {
-    display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(16rem, 1fr);
-    gap: 24px;
-    align-items: start;
+  .page-head {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 
-  @media (max-width: 800px) {
-    .book-split {
-      grid-template-columns: 1fr;
+  .page-title {
+    margin: 0;
+    color: var(--color-fg);
+    font-family: var(--font-serif);
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .page-tabs {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius);
+  }
+
+  .page-tab-pill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    border-radius: var(--radius);
+    background: var(--color-fg);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .page-tabs[data-ready="true"] .page-tab-pill {
+    opacity: 1;
+    transition-property: left, width;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+  }
+
+  .page-tab {
+    position: relative;
+    z-index: 1;
+    min-height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--color-muted);
+    font: inherit;
+    cursor: pointer;
+    transition-property: color;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+
+  .page-tab[aria-selected="true"] {
+    color: var(--color-bg);
+  }
+
+  .page-tab:focus-visible {
+    outline: 2px solid var(--color-fg);
+    outline-offset: 2px;
+  }
+
+  .tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    animation: panel-in 150ms ease-out;
+  }
+
+  .chart-frame canvas {
+    opacity: 0;
+  }
+
+  .chart-frame[data-state="ready"] canvas {
+    opacity: 1;
+    transition-property: opacity;
+    transition-duration: 220ms;
+    transition-timing-function: ease-out;
+  }
+
+  @keyframes panel-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-tabs[data-ready="true"] .page-tab-pill,
+    .page-tab,
+    .chart-frame[data-state="ready"] canvas {
+      transition: none;
+    }
+
+    .chart-frame canvas,
+    .chart-frame[data-state="ready"] canvas {
+      opacity: 1;
+    }
+
+    .tab-panel {
+      animation: none;
     }
   }
 }

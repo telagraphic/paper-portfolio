@@ -6,6 +6,7 @@ import "./page.css";
 import "./book-figures.css";
 import "./trade-form.css";
 import "./equity-chart.css";
+import "./data-table.css";
 import "./listing-list.css";
 import "./listing-detail.css";
 import "./activity-list.css";

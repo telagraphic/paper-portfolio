@@ -2,16 +2,7 @@
   .book-figures {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-  }
-
-  .book-figures h1 {
-    margin: 0;
-    font-size: 2.25rem;
-    font-weight: 400;
-    letter-spacing: -0.03em;
-    line-height: 1.05;
-    text-wrap: balance;
+    gap: 16px;
   }
 
   .book-opened {
@@ -22,8 +13,9 @@
 
   .book-figures dl {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: minmax(12rem, 1.5fr) repeat(3, minmax(0, 1fr));
     gap: 16px 24px;
+    align-items: end;
     margin: 0;
   }
 
@@ -43,6 +35,14 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .book-figures .book-equity {
+    width: auto;
+    font-size: 2.75rem;
+    font-weight: 520;
+    letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
   .book-figures .up {
     color: var(--color-up);
   }
@@ -52,8 +52,8 @@
   }
 
   @media (max-width: 700px) {
-    .book-figures h1 {
-      font-size: 1.75rem;
+    .book-figures .book-equity {
+      font-size: 2.25rem;
     }
 
     .book-figures dl {

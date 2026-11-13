@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActivityView, BookView } from "../book/book";
 import { ActivityList } from "./ActivityList";
 import { BookFigures } from "./BookFigures";
@@ -6,6 +6,7 @@ import { EquityChart } from "./EquityChart";
 import { listingKey } from "./format";
 import { ListingDetail } from "./ListingDetail";
 import { ListingList } from "./ListingList";
+import { PageTabs, type PageTab } from "./PageTabs";
 import { TradeForm } from "./TradeForm";
 
 const deleteErrors: Record<string, string> = {
@@ -16,10 +17,12 @@ const deleteErrors: Record<string, string> = {
 
 export function App() {
   const [book, setBook] = useState<BookView | null>(null);
+  const [tab, setTab] = useState<PageTab>("totals");
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState<ActivityView | null>(null);
   const [deleteNotice, setDeleteNotice] = useState("");
+  const knownListings = useRef<Set<string> | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -35,6 +38,16 @@ export function App() {
       });
     return () => controller.abort();
   }, []);
+
+  const listingKeys = book?.listings.map((item) => listingKey(item)) ?? [];
+  const listingKeyList = listingKeys.join("\n");
+  const entering =
+    knownListings.current === null ? [] : listingKeys.filter((key) => !knownListings.current?.has(key));
+
+  useEffect(() => {
+    if (!book || tab === "trade") return;
+    knownListings.current = new Set(listingKeyList.length === 0 ? [] : listingKeyList.split("\n"));
+  }, [book, tab, listingKeyList]);
 
   async function confirmDelete() {
     if (!pending) return;
@@ -56,35 +69,64 @@ export function App() {
 
   return (
     <main className="page">
-      <BookFigures book={book} />
-      <TradeForm
-        cashUsd={book.cashUsd}
-        onBook={(next, key) => {
-          setBook(next);
-          setSelected(key);
-          setPending(null);
-          setDeleteNotice("");
-        }}
-      />
-      <EquityChart series={book.equitySeries} />
-      <div className="book-split">
-        <ListingList listings={book.listings} selected={selected} onSelect={setSelected} />
-        <ListingDetail listing={listing} />
+      <header className="page-head">
+        <h1 className="page-title">Paper Portfolio</h1>
+        <PageTabs value={tab} onChange={setTab} />
+      </header>
+      <div key={tab} className="tab-panel" id={`page-panel-${tab}`} role="tabpanel" aria-labelledby={`page-tab-${tab}`}>
+        {tab === "totals" ? (
+          <>
+            <BookFigures book={book} />
+            <EquityChart series={book.equitySeries} />
+            <ListingList listings={book.listings} selected={selected} onSelect={setSelected} entering={entering} />
+            <ActivityList
+              activity={book.activity}
+              pending={pending}
+              notice={deleteNotice}
+              onAsk={(trade) => {
+                setPending(trade);
+                setDeleteNotice("");
+              }}
+              onConfirm={() => void confirmDelete()}
+              onKeep={() => {
+                setPending(null);
+                setDeleteNotice("");
+              }}
+            />
+          </>
+        ) : null}
+        {tab === "tickers" ? (
+          <>
+            <ListingDetail listing={listing} />
+            <ListingList listings={book.listings} selected={selected} onSelect={setSelected} entering={entering} />
+            <ActivityList
+              activity={book.activity}
+              pending={pending}
+              notice={deleteNotice}
+              onAsk={(trade) => {
+                setPending(trade);
+                setDeleteNotice("");
+              }}
+              onConfirm={() => void confirmDelete()}
+              onKeep={() => {
+                setPending(null);
+                setDeleteNotice("");
+              }}
+            />
+          </>
+        ) : null}
+        {tab === "trade" ? (
+          <TradeForm
+            cashUsd={book.cashUsd}
+            onBook={(next, key) => {
+              setBook(next);
+              setSelected(key);
+              setPending(null);
+              setDeleteNotice("");
+            }}
+          />
+        ) : null}
       </div>
-      <ActivityList
-        activity={book.activity}
-        pending={pending}
-        notice={deleteNotice}
-        onAsk={(trade) => {
-          setPending(trade);
-          setDeleteNotice("");
-        }}
-        onConfirm={() => void confirmDelete()}
-        onKeep={() => {
-          setPending(null);
-          setDeleteNotice("");
-        }}
-      />
     </main>
   );
 }

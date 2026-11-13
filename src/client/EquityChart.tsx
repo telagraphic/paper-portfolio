@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import { ColorType, createChart, LineSeries, type UTCTimestamp } from "lightweight-charts";
 import type { EquityPoint } from "../book/book";
+import { useChartFrame } from "./useChartFrame";
 
 export function EquityChart({ series }: { series: EquityPoint[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const key = series.map((point) => `${point.time}:${point.equityUsd}`).join("|");
+  const state = useChartFrame(key);
 
   useEffect(() => {
     const element = ref.current;
@@ -29,11 +31,14 @@ export function EquityChart({ series }: { series: EquityPoint[] }) {
 
   return (
     <figure className="equity-chart">
-      <figcaption>
-        <h2>Equity</h2>
-        <p>Cash plus open positions, in USD</p>
-      </figcaption>
-      <div className="chart-frame" ref={ref} role="img" aria-label="Equity in US dollars" />
+      <div
+        className="chart-frame"
+        data-state={state}
+        ref={ref}
+        role="img"
+        aria-label="Equity in US dollars"
+        aria-busy={state === "loading"}
+      />
     </figure>
   );
 }

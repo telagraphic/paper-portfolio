@@ -107,7 +107,7 @@ A good test exercises the module's external behavior. It does not assert private
 
 ## Further Notes
 
-The glossary at the repo root is the vocabulary for listings, trades, fills, gains, and equity. ADR 0001 records EODHD as the only quote source. ADR 0002 records the SQLite file on the Docker volume. ADR 0003, buys only, is superseded by ADR 0004, which records sells as the way a gain is realized and deletion as the way a mistaken trade is erased. ADR 0005 records trade-date FX for realized gain.
+The glossary at the repo root is the vocabulary for listings, trades, fills, gains, and equity. ADR 0001 records EODHD as the only quote source. ADR 0002 records the SQLite file on the Docker volume. ADR 0003, buys only, is superseded by ADR 0004, which records sells as the way a gain is realized and deletion as the way a mistaken trade is erased. ADR 0005 records trade-date FX for realized gain. ADR 0006 records the tabbed page. ADR 0008 records that the activity list is its own tab, that both charts are an area of closes, and that the page title is Geist. ADR 0009 records that a listing remembers the name search returned. Where a user story below still describes the long column, candlesticks, volume, or Geist Serif, ADR 0006 and ADR 0008 win.
 
 The approved page is one column: book figures, the trade form with cash and the manual-mark fields, the equity chart, the listing list beside the selected listing, then the activity list with a confirmation before delete. The sample figures on that layout are not the book. An empty book is $100,000 and no listings.
 

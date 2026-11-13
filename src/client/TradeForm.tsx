@@ -1,7 +1,8 @@
-import { useState, type FormEvent, type KeyboardEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import type { BookView, TradeSide } from "../book/book";
 import type { SearchHit } from "../quotes/eodhd";
 import { formatTrading, formatUsd, listingKey } from "./format";
+import { MorphValue } from "./MorphValue";
 
 const errors: Record<string, string> = {
   invalid: "Enter a symbol, an exchange, and a share price.",
@@ -34,9 +35,10 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
   const [searchNote, setSearchNote] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
+  const [busy, setBusy] = useState<null | "search" | TradeSide>(null);
 
   const currencyOptions = currencies.includes(tradingCurrency) ? currencies : [tradingCurrency, ...currencies];
+  const total = orderTotal(sharePrice, shares);
 
   async function submit(side: TradeSide) {
     setError("");
@@ -47,7 +49,7 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
       return;
     }
 
-    setPending(true);
+    setBusy(side);
     try {
       const response = await fetch("/api/trades", {
         method: "POST",
@@ -70,7 +72,7 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
     } catch {
       setError("The trade could not be recorded.");
     } finally {
-      setPending(false);
+      setBusy(null);
     }
   }
 
@@ -85,7 +87,7 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
     if (!query) return;
     setError("");
     setSearchNote("");
-    setPending(true);
+    setBusy("search");
     try {
       const response = await fetch("/api/search", {
         method: "POST",
@@ -100,7 +102,7 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
     } catch {
       setSearchNote("Search could not be completed.");
     } finally {
-      setPending(false);
+      setBusy(null);
     }
   }
 
@@ -127,32 +129,21 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
   }
 
   return (
-    <form className="trade-form" onSubmit={onSubmit}>
+    <form className="trade-form" onSubmit={onSubmit} aria-busy={busy !== null}>
+      <p className="trade-cash">
+        Cash <MorphValue>{formatUsd(cashUsd)}</MorphValue>
+      </p>
       <div className="trade-panel">
-        <div className="trade-tabs" role="tablist" aria-label="Trade entry">
-          <button
-            type="button"
-            role="tab"
-            id="trade-tab-search"
-            className="trade-tab"
-            aria-selected={mode === "search"}
-            aria-controls="trade-panel"
-            onClick={() => setMode("search")}
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            role="tab"
-            id="trade-tab-manual"
-            className="trade-tab"
-            aria-selected={mode === "manual"}
-            aria-controls="trade-panel"
-            onClick={() => setMode("manual")}
-          >
-            Manual
-          </button>
-        </div>
+        <Segmented
+          label="Trade entry"
+          value={mode}
+          tabs
+          choices={[
+            { id: "search", label: "Search" },
+            { id: "manual", label: "Manual" },
+          ]}
+          onChange={(id) => setMode(id as TradeMode)}
+        />
         <div
           className="trade-row"
           role="tabpanel"
@@ -161,19 +152,34 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
         >
           <label className="trade-symbol">
             {mode === "search" ? "Search" : "Symbol"}
-            <input
-              value={symbol}
-              onChange={(event) => onSymbolChange(event.target.value)}
-              onKeyDown={mode === "search" ? onSearchKey : undefined}
-              placeholder={mode === "search" ? "Apple" : "AAPL"}
-              autoComplete="off"
-            />
+            {mode === "search" ? (
+              <span className="trade-search">
+                <input
+                  value={symbol}
+                  onChange={(event) => onSymbolChange(event.target.value)}
+                  onKeyDown={onSearchKey}
+                  placeholder="Apple"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="trade-search-button"
+                  disabled={busy !== null}
+                  aria-busy={busy === "search"}
+                  onClick={() => void runSearch()}
+                >
+                  {busy === "search" ? "Searching" : "Search"}
+                </button>
+              </span>
+            ) : (
+              <input
+                value={symbol}
+                onChange={(event) => onSymbolChange(event.target.value)}
+                placeholder="AAPL"
+                autoComplete="off"
+              />
+            )}
           </label>
-          {mode === "search" ? (
-            <button type="button" className="trade-sell" disabled={pending} onClick={() => void runSearch()}>
-              Search
-            </button>
-          ) : null}
           <label>
             Exchange
             <input
@@ -213,34 +219,56 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
               autoComplete="off"
             />
           </label>
-          <button type="submit" disabled={pending}>
-            Buy
-          </button>
-          <button type="button" className="trade-sell" disabled={pending} onClick={() => void submit("sell")}>
-            Sell
-          </button>
+          <Segmented
+            label="Buy or sell"
+            value="buy"
+            disabled={busy !== null}
+            choices={[
+              { id: "buy", label: busy === "buy" ? "Buying" : "Buy", type: "submit", busy: busy === "buy" },
+              {
+                id: "sell",
+                label: busy === "sell" ? "Selling" : "Sell",
+                busy: busy === "sell",
+                onClick: () => void submit("sell"),
+              },
+            ]}
+          />
         </div>
+        <p className="trade-total">
+          Total <span data-empty={total == null ? "true" : undefined}>{total == null ? "—" : formatTrading(total, tradingCurrency)}</span>
+        </p>
         {mode === "search" && hits.length > 0 ? (
-          <ul className="search-results">
-            {hits.map((hit) => {
-              const key = listingKey(hit);
-              return (
-                <li key={key}>
-                  <button type="button" aria-pressed={selectedKey === key} onClick={() => choose(hit)}>
-                    <span>{hit.name}</span>
-                    <span>{key}</span>
-                    <span className="hit-price">
-                      {hit.previousClose == null ? "—" : formatTrading(hit.previousClose, hit.tradingCurrency)}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="data-table">
+            <table>
+              <caption>Search results</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Listing</th>
+                  <th scope="col">Close</th>
+                </tr>
+              </thead>
+              <tbody>
+                {hits.map((hit) => {
+                  const key = listingKey(hit);
+                  return (
+                    <tr key={key} aria-selected={selectedKey === key} onClick={() => choose(hit)}>
+                      <th scope="row">
+                        <button type="button" onClick={() => choose(hit)}>
+                          {hit.name}
+                        </button>
+                      </th>
+                      <td>{key}</td>
+                      <td>{hit.previousClose == null ? "—" : formatTrading(hit.previousClose, hit.tradingCurrency)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : null}
         {mode === "search" && searchNote ? <p className="trade-note">{searchNote}</p> : null}
       </div>
-      <p className="trade-note">Cash {formatUsd(cashUsd)}</p>
       {error ? (
         <p className="trade-error" role="alert">
           {error}
@@ -253,6 +281,111 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
       ) : null}
     </form>
   );
+}
+
+type SegmentChoice = {
+  id: string;
+  label: string;
+  type?: "button" | "submit";
+  busy?: boolean;
+  onClick?: () => void;
+};
+
+function Segmented({
+  label,
+  value,
+  choices,
+  onChange,
+  disabled,
+  tabs = false,
+}: {
+  label: string;
+  value: string;
+  choices: SegmentChoice[];
+  onChange?: (id: string) => void;
+  disabled?: boolean;
+  tabs?: boolean;
+}) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const buttons = useRef<(HTMLButtonElement | null)[]>([]);
+  const choicesRef = useRef(choices);
+  const [pill, setPill] = useState({ left: 0, width: 0 });
+  const [ready, setReady] = useState(false);
+  const signature = choices.map((choice) => `${choice.id}:${choice.label}`).join("|");
+  choicesRef.current = choices;
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const selected = choicesRef.current.findIndex((choice) => choice.id === value);
+    const button = buttons.current[selected];
+    if (!list || !button) return;
+
+    const measure = () => setPill({ left: button.offsetLeft, width: button.offsetWidth });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(list);
+    observer.observe(button);
+    const frame = requestAnimationFrame(() => setReady(true));
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [signature, value]);
+
+  return (
+    <div
+      ref={listRef}
+      className="trade-segment"
+      role={tabs ? "tablist" : "group"}
+      aria-label={label}
+      data-ready={ready ? "true" : "false"}
+    >
+      <span className="trade-segment-pill" style={{ left: pill.left, width: pill.width }} aria-hidden="true" />
+      {choices.map((choice, index) => (
+        <button
+          key={choice.id}
+          ref={(node) => {
+            buttons.current[index] = node;
+          }}
+          type={choice.type ?? "button"}
+          role={tabs ? "tab" : undefined}
+          id={tabs ? `trade-tab-${choice.id}` : undefined}
+          aria-selected={tabs ? value === choice.id : undefined}
+          aria-controls={tabs ? "trade-panel" : undefined}
+          aria-busy={choice.busy || undefined}
+          data-selected={value === choice.id ? "true" : "false"}
+          tabIndex={tabs ? (value === choice.id ? 0 : -1) : undefined}
+          disabled={disabled}
+          onClick={() => {
+            onChange?.(choice.id);
+            choice.onClick?.();
+          }}
+          onKeyDown={
+            tabs
+              ? (event) => {
+                  const direction = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+                  if (!direction) return;
+                  event.preventDefault();
+                  const next = (index + direction + choices.length) % choices.length;
+                  onChange?.(choices[next].id);
+                  buttons.current[next]?.focus();
+                }
+              : undefined
+          }
+        >
+          {choice.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function orderTotal(priceText: string, sharesText: string) {
+  const price = Number(priceText);
+  const count = Number(sharesText);
+  if (!Number.isFinite(price) || price <= 0) return null;
+  if (!Number.isFinite(count) || count <= 0) return null;
+  return price * count;
 }
 
 function readFields(fields: {

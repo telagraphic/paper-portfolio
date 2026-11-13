@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { ListingView } from "../book/book";
 import { formatShares, formatTrading, formatUsd, formatUsdOrBlank, gainTone, listingKey } from "./format";
 
@@ -5,11 +6,15 @@ type ListingListProps = {
   listings: ListingView[];
   selected: string;
   onSelect: (key: string) => void;
+  entering?: string[];
 };
 
-export function ListingList({ listings, selected, onSelect }: ListingListProps) {
+export function ListingList({ listings, selected, onSelect, entering = [] }: ListingListProps) {
+  const enteringKeys = useRef<Set<string> | null>(null);
+  if (enteringKeys.current === null) enteringKeys.current = new Set(entering);
+
   return (
-    <div className="listing-list">
+    <div className="listing-list data-table">
       <table>
         <caption>Listings</caption>
         <thead>
@@ -33,7 +38,12 @@ export function ListingList({ listings, selected, onSelect }: ListingListProps) 
             listings.map((listing) => {
               const key = listingKey(listing);
               return (
-                <tr key={key} aria-selected={key === selected} onClick={() => onSelect(key)}>
+                <tr
+                  key={key}
+                  className={enteringKeys.current?.has(key) ? "listing-enter" : undefined}
+                  aria-selected={key === selected}
+                  onClick={() => onSelect(key)}
+                >
                   <th scope="row">
                     <button type="button" onClick={() => onSelect(key)}>
                       {key}

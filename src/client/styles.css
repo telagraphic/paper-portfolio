@@ -14,6 +14,14 @@
 
 @layer tokens {
   @font-face {
+    font-family: "Geist";
+    src: url("../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
     font-family: "Geist Serif";
     src: url("../../node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2")
       format("woff2");
@@ -24,6 +32,7 @@
 
   :root {
     color-scheme: light dark;
+    --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
     --font-serif: "Geist Serif", "Iowan Old Style", Palatino, Georgia, serif;
     --color-bg: light-dark(#f3efe6, #14120f);
     --color-fg: light-dark(#1c1915, #f3efe6);
@@ -51,9 +60,26 @@
 
   body {
     min-height: 100vh;
-    background: var(--color-bg);
+    background-color: var(--color-bg);
     color: var(--color-fg);
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.18;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    mix-blend-mode: multiply;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
   }
 }

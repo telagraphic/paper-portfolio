@@ -1,0 +1,96 @@
+@layer components {
+  .data-table {
+    min-width: 0;
+  }
+
+  .data-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .data-table caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .data-table th,
+  .data-table td {
+    height: 44px;
+    padding: 0;
+    font-weight: 400;
+    text-align: left;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .data-table th:not(:first-child),
+  .data-table td:not(:first-child) {
+    width: var(--column-num);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .data-table thead th {
+    color: var(--color-muted);
+  }
+
+  .data-table tbody tr:has(button) {
+    cursor: pointer;
+    transition-property: background-color;
+    transition-duration: 100ms;
+    transition-timing-function: ease-out;
+  }
+
+  .data-table tbody tr:has(button):hover {
+    background: color-mix(in srgb, var(--color-selected) 65%, transparent);
+  }
+
+  .data-table button {
+    display: inline-flex;
+    align-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .data-table button:focus-visible {
+    outline: 2px solid var(--color-fg);
+    outline-offset: 2px;
+  }
+
+  .data-table tr[aria-selected="true"],
+  .data-table tr[aria-selected="true"]:hover {
+    background: var(--color-selected);
+  }
+
+  .data-table .listing-empty {
+    width: auto;
+    color: var(--color-muted);
+    text-align: left;
+    text-wrap: pretty;
+  }
+
+  .data-table .up {
+    color: var(--color-up);
+  }
+
+  .data-table .down {
+    color: var(--color-down);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .data-table tbody tr:has(button) {
+      transition: none;
+    }
+  }
+}

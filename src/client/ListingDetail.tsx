@@ -1,24 +1,24 @@
 import { useEffect, useRef } from "react";
-import {
-  CandlestickSeries,
-  ColorType,
-  createChart,
-  HistogramSeries,
-} from "lightweight-charts";
-import type { ListingView } from "../book/book";
+import { AreaSeries, ColorType, createChart, HistogramSeries } from "lightweight-charts";
+import type { Candle, ListingView } from "../book/book";
 import { formatRate, formatShares, formatTrading, formatUsd, formatUsdOrBlank, gainTone, listingKey } from "./format";
+import { useChartFrame } from "./useChartFrame";
+
+const noBars: Candle[] = [];
 
 export function ListingDetail({ listing }: { listing: ListingView | null }) {
   const ref = useRef<HTMLDivElement>(null);
-  const bars = listing?.bars ?? [];
-  const key = bars.map((bar) => `${bar.date}:${bar.close}:${bar.volume}`).join("|");
+  const bars = listing?.bars ?? noBars;
+  const key = `${listing ? listingKey(listing) : "none"}:${bars.map((bar) => `${bar.date}:${bar.close}:${bar.volume}`).join("|")}`;
+  const state = useChartFrame(key);
 
   useEffect(() => {
     const element = ref.current;
     if (!element || bars.length === 0) return;
     const color = getComputedStyle(document.body).color;
-    const up = cssColor("light-dark(#0b6a30, #8fd4a8)");
-    const down = cssColor("light-dark(#8f1d1d, #f3b1b1)");
+    const line = cssColor("var(--color-fg)");
+    const up = cssColor("var(--color-up)");
+    const down = cssColor("var(--color-down)");
     const chart = createChart(element, {
       autoSize: true,
       layout: {
@@ -27,29 +27,21 @@ export function ListingDetail({ listing }: { listing: ListingView | null }) {
         fontFamily: getComputedStyle(document.body).fontFamily,
       },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },
-      rightPriceScale: { borderVisible: false },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.28 } },
       timeScale: { borderVisible: false },
     });
-    const candles = chart.addSeries(CandlestickSeries, {
-      upColor: up,
-      downColor: down,
-      borderUpColor: up,
-      borderDownColor: down,
-      wickUpColor: up,
-      wickDownColor: down,
+    const area = chart.addSeries(AreaSeries, {
+      lineColor: line,
+      topColor: fade(line, 0.28),
+      bottomColor: fade(line, 0),
+      lineWidth: 2,
     });
-    candles.setData(
-      bars.map((bar) => ({
-        time: bar.date,
-        open: bar.open,
-        high: bar.high,
-        low: bar.low,
-        close: bar.close,
-      })),
-    );
+    area.setData(bars.map((bar) => ({ time: bar.date, value: bar.close })));
     const volume = chart.addSeries(HistogramSeries, {
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
+      lastValueVisible: false,
+      priceLineVisible: false,
     });
     chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
     volume.setData(
@@ -65,14 +57,29 @@ export function ListingDetail({ listing }: { listing: ListingView | null }) {
 
   return (
     <section className="listing-detail" aria-label="Listing detail">
-      <h2>{listing ? listingKey(listing) : "Listing"}</h2>
-      <p className="listing-caption">
-        {listing ? `Mark in ${listing.tradingCurrency}` : "Select a listing."}
-      </p>
+      <h2>
+        {listing ? (
+          <>
+            {listing.symbol}
+            <span className="listing-meta">
+              {listing.exchange} · {listing.tradingCurrency}
+            </span>
+          </>
+        ) : (
+          "Listing"
+        )}
+      </h2>
       {bars.length > 0 ? (
-        <div className="chart-frame" ref={ref} role="img" aria-label="Selected listing daily bars" />
+        <div
+          className="chart-frame"
+          data-state={state}
+          ref={ref}
+          role="img"
+          aria-label="Selected listing close"
+          aria-busy={state === "loading"}
+        />
       ) : (
-        <div className="chart-frame" role="img" aria-label="Selected listing daily bars">
+        <div className="chart-frame" data-state="ready" role="img" aria-label="Selected listing close">
           {listing ? "No session closes yet." : "Select a listing."}
         </div>
       )}
@@ -106,12 +113,6 @@ export function ListingDetail({ listing }: { listing: ListingView | null }) {
             <dt>Total gain</dt>
             <dd className={gainTone(listing.totalGainUsd)}>{formatUsdOrBlank(listing.totalGainUsd)}</dd>
           </div>
-          {listing.tradingCurrency !== "USD" ? (
-            <div>
-              <dt>Total gain, {listing.tradingCurrency}</dt>
-              <dd className={gainTone(listing.totalGain)}>{formatTrading(listing.totalGain, listing.tradingCurrency)}</dd>
-            </div>
-          ) : null}
           <div>
             <dt>Realized gain</dt>
             <dd className={gainTone(listing.realizedGainUsd)}>{formatUsd(listing.realizedGainUsd)}</dd>
@@ -137,4 +138,11 @@ function cssColor(value: string): string {
   const color = getComputedStyle(probe).color;
   probe.remove();
   return color;
+}
+
+function fade(color: string, alpha: number) {
+  const channels = color.match(/[\d.]+/g);
+  if (!channels || channels.length < 3) return color;
+  const [red, green, blue] = channels;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
