@@ -1,4 +1,31 @@
 @layer components {
+  .listing-list.data-table table {
+    table-layout: fixed;
+    min-width: 960px;
+  }
+
+  .listing-list.data-table th,
+  .listing-list.data-table td {
+    width: 10%;
+    padding: 0 0 0 24px;
+    overflow: hidden;
+    text-align: left;
+  }
+
+  .listing-list.data-table th:nth-child(2),
+  .listing-list.data-table td:nth-child(2) {
+    width: 20%;
+    max-width: 0;
+  }
+
+  .listing-name-scroll {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: thin;
+  }
+
   .listing-list tr.listing-enter {
     animation: listing-enter 220ms ease-out;
   }

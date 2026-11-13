@@ -1,11 +1,12 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
-export type PageTab = "totals" | "tickers" | "trade";
+export type PageTab = "totals" | "tickers" | "trade" | "history";
 
 const tabs: { id: PageTab; label: string }[] = [
   { id: "totals", label: "Totals" },
   { id: "tickers", label: "Tickers" },
   { id: "trade", label: "Buy/Sell" },
+  { id: "history", label: "History" },
 ];
 
 type PageTabsProps = {

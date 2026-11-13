@@ -3,9 +3,10 @@
   .book-status {
     display: flex;
     flex-direction: column;
-    gap: 24px;
-    max-width: 72rem;
-    padding: 24px;
+    gap: var(--space-44);
+    width: min(1440px, 100%);
+    margin: 0 auto;
+    padding: var(--space-56) var(--space-72) var(--space-96);
   }
 
   .book-status {
@@ -18,33 +19,50 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: var(--space-12);
+  }
+
+  .page-credit {
+    margin: 0;
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 14px;
+  }
+
+  .page-credit a {
+    color: inherit;
   }
 
   .page-title {
     margin: 0;
     color: var(--color-fg);
-    font-family: var(--font-serif);
-    font-size: 0.875rem;
+    font-family: var(--font-sans);
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: -0.01em;
-    line-height: 1.2;
+    line-height: 18px;
+    text-wrap: balance;
   }
 
   .page-tabs {
     position: relative;
     display: inline-flex;
     align-items: center;
-    border-radius: var(--radius);
+    gap: var(--space-2);
+    height: 38px;
+    padding: 3px;
+    border-radius: var(--radius-track);
+    background: var(--color-surface);
   }
 
   .page-tab-pill {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: 3px;
+    bottom: 3px;
     left: 0;
-    border-radius: var(--radius);
-    background: var(--color-fg);
+    border-radius: var(--radius-button);
+    background: var(--color-button);
     opacity: 0;
     pointer-events: none;
   }
@@ -62,10 +80,13 @@
     min-height: 32px;
     padding: 0 14px;
     border: 0;
-    border-radius: var(--radius);
+    border-radius: var(--radius-button);
     background: transparent;
-    color: var(--color-muted);
-    font: inherit;
+    color: var(--color-fg);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 18px;
     cursor: pointer;
     transition-property: color;
     transition-duration: 150ms;
@@ -73,7 +94,7 @@
   }
 
   .page-tab[aria-selected="true"] {
-    color: var(--color-bg);
+    color: var(--color-button-label);
   }
 
   .page-tab:focus-visible {
@@ -84,15 +105,17 @@
   .tab-panel {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: var(--space-44);
     animation: panel-in 150ms ease-out;
   }
 
-  .chart-frame canvas {
+  .chart-frame canvas,
+  .chart-frame .chart-last {
     opacity: 0;
   }
 
-  .chart-frame[data-state="ready"] canvas {
+  .chart-frame[data-state="ready"] canvas,
+  .chart-frame[data-state="ready"] .chart-last {
     opacity: 1;
     transition-property: opacity;
     transition-duration: 220ms;
@@ -109,15 +132,25 @@
     }
   }
 
+  @media (max-width: 800px) {
+    .page,
+    .book-status {
+      padding: 32px 20px 64px;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .page-tabs[data-ready="true"] .page-tab-pill,
     .page-tab,
-    .chart-frame[data-state="ready"] canvas {
+    .chart-frame[data-state="ready"] canvas,
+    .chart-frame[data-state="ready"] .chart-last {
       transition: none;
     }
 
     .chart-frame canvas,
-    .chart-frame[data-state="ready"] canvas {
+    .chart-frame .chart-last,
+    .chart-frame[data-state="ready"] canvas,
+    .chart-frame[data-state="ready"] .chart-last {
       opacity: 1;
     }
 

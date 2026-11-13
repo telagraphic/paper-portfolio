@@ -1,6 +1,7 @@
 @layer components {
   .data-table {
     min-width: 0;
+    overflow-x: auto;
   }
 
   .data-table table {
@@ -21,22 +22,48 @@
 
   .data-table th,
   .data-table td {
-    height: 44px;
-    padding: 0;
+    height: 56px;
+    padding: 0 var(--space-12) 0 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
     font-weight: 400;
-    text-align: left;
-    border-bottom: 1px solid var(--color-line);
-  }
-
-  .data-table th:not(:first-child),
-  .data-table td:not(:first-child) {
-    width: var(--column-num);
+    line-height: 18px;
     text-align: right;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--color-line);
     font-variant-numeric: tabular-nums;
   }
 
+  .data-table th:first-child,
+  .data-table td:first-child,
+  .data-table th:nth-child(2),
+  .data-table td:nth-child(2) {
+    text-align: left;
+  }
+
   .data-table thead th {
+    height: 32px;
     color: var(--color-muted);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    line-height: 14px;
+    text-transform: uppercase;
+  }
+
+  .data-table tbody th {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 20px;
+  }
+
+  .listing-name {
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 20px;
   }
 
   .data-table tbody tr:has(button) {
@@ -47,7 +74,7 @@
   }
 
   .data-table tbody tr:has(button):hover {
-    background: color-mix(in srgb, var(--color-selected) 65%, transparent);
+    background: color-mix(in srgb, var(--color-selected) 70%, var(--color-bg));
   }
 
   .data-table button {
@@ -76,16 +103,44 @@
   .data-table .listing-empty {
     width: auto;
     color: var(--color-muted);
+    font-family: var(--font-sans);
     text-align: left;
     text-wrap: pretty;
   }
 
   .data-table .up {
-    color: var(--color-up);
+    color: var(--color-up-deep);
   }
 
   .data-table .down {
-    color: var(--color-down);
+    color: var(--color-down-deep);
+  }
+
+  .day-pill,
+  .side-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .day-pill.up,
+  .side-pill.up {
+    background: var(--color-up-pale);
+    color: var(--color-up-deep);
+  }
+
+  .day-pill.down,
+  .side-pill.down {
+    background: var(--color-down-pale);
+    color: var(--color-down-deep);
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -22,35 +22,43 @@
   }
 
   @font-face {
-    font-family: "Geist Serif";
-    src: url("../../node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2")
-      format("woff2");
-    font-weight: 400;
+    font-family: "Geist Mono";
+    src: url("../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+    font-weight: 100 900;
     font-style: normal;
     font-display: swap;
   }
 
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
     --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
-    --font-serif: "Geist Serif", "Iowan Old Style", Palatino, Georgia, serif;
-    --color-bg: light-dark(#f3efe6, #14120f);
-    --color-fg: light-dark(#1c1915, #f3efe6);
-    --color-muted: light-dark(#5e584e, #b7b0a4);
-    --color-up: light-dark(#0b6a30, #8fd4a8);
-    --color-down: light-dark(#8f1d1d, #f3b1b1);
-    --color-selected: light-dark(#e7e0d4, #2a241c);
-    --color-line: light-dark(rgb(28 25 21 / 0.12), rgb(243 239 230 / 0.16));
-    --column-num: 9rem;
-    --radius: 8px;
-    --shadow-border:
-      0 0 0 1px light-dark(rgb(0 0 0 / 0.06), rgb(255 255 255 / 0.08)),
-      0 1px 2px -1px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0)),
-      0 2px 4px light-dark(rgb(0 0 0 / 0.04), rgb(0 0 0 / 0));
-    --shadow-border-hover:
-      0 0 0 1px light-dark(rgb(0 0 0 / 0.08), rgb(255 255 255 / 0.13)),
-      0 1px 2px -1px light-dark(rgb(0 0 0 / 0.08), rgb(0 0 0 / 0)),
-      0 2px 4px light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0));
+    --font-mono: "Geist Mono", ui-monospace, monospace;
+    --color-bg: #f4f4f5;
+    --color-fg: #171717;
+    --color-display: #141414;
+    --color-muted: #737373;
+    --color-line: #c8c8cc;
+    --color-surface: #ffffff;
+    --color-selected: #e6e6e8;
+    --color-button: #171717;
+    --color-button-label: #f4f4f5;
+    --color-up: #7e9a8c;
+    --color-up-pale: #e2e9e5;
+    --color-up-deep: #46584d;
+    --color-down: #c4a0a0;
+    --color-down-pale: #e9dbdb;
+    --color-down-deep: #685757;
+    --color-chart: #6e907c;
+    --radius-button: 8px;
+    --radius-track: 10px;
+    --space-2: 2px;
+    --space-8: 8px;
+    --space-12: 12px;
+    --space-24: 24px;
+    --space-44: 44px;
+    --space-56: 56px;
+    --space-72: 72px;
+    --space-96: 96px;
   }
 
   html {
@@ -63,6 +71,9 @@
     background-color: var(--color-bg);
     color: var(--color-fg);
     font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 18px;
     font-variant-numeric: tabular-nums;
   }
 

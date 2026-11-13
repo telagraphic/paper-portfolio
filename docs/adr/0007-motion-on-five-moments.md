@@ -4,7 +4,7 @@ ADR 0006 sets where each region sits. This sets how that page moves. Motion is c
 
 The tab pill moves by left and width, 200ms ease-out, and the move can be interrupted. It does not travel in from the left on first paint. The panel fades over 150ms. It does not slide horizontally, so the chart measures a stable column. Search/Manual and Buy/Sell are the same kind of segment. Search/Manual moves the pill with the mode. Buy stays the filled side of its pair. Sell sits in that track and still acts immediately. Those two do not scale on press.
 
-The chart frame holds a quiet fill while the chart mounts, then the series fades in. This runs on a tab change and when the selected listing changes. Buy/Sell has no chart. The series itself stays still.
+The chart fades in when it mounts. There is no fill behind it. This runs on a tab change and when the selected listing changes. Buy/Sell has no chart. The series itself stays still.
 
 Listing rows and search rows change background in about 100ms. Hover leaves. Selection stays. There is no lift and no shadow. A new listing enters once when the list is shown. An existing listing updates in place. A sold-out listing stays in the list at zero shares and does not play an exit.
 

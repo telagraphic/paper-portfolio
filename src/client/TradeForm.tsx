@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import type { BookView, TradeSide } from "../book/book";
+import type { TradeSide } from "../book/book";
+import type { PageBook } from "./page-book";
 import type { SearchHit } from "../quotes/eodhd";
 import { formatTrading, formatUsd, listingKey } from "./format";
 import { MorphValue } from "./MorphValue";
@@ -20,7 +21,7 @@ type TradeMode = "search" | "manual";
 
 type TradeFormProps = {
   cashUsd: number;
-  onBook: (book: BookView, selected: string) => void;
+  onBook: (book: PageBook, selected: string) => void;
 };
 
 export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
@@ -49,15 +50,20 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
       return;
     }
 
+    const chosen = hits.find((hit) => listingKey(hit) === selectedKey);
+    const name =
+      mode === "search" && chosen && chosen.symbol === fields.symbol && chosen.exchange === fields.exchange
+        ? chosen.name
+        : undefined;
     setBusy(side);
     try {
       const response = await fetch("/api/trades", {
         method: "POST",
         headers: { "content-type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ side, ...fields }),
+        body: JSON.stringify({ side, ...fields, ...(name ? { name } : {}) }),
       });
-      const body = (await response.json()) as BookView & { error?: string };
+      const body = (await response.json()) as PageBook & { error?: string };
       if (!response.ok) {
         setError(errors[body.error ?? ""] ?? "The trade could not be recorded.");
         return;

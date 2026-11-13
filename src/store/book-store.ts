@@ -12,6 +12,8 @@ export type BookStore = {
   saveSplits(rows: Split[]): void;
   attempts(symbol: string, exchange: string, kind: string): string[];
   markAttempt(symbol: string, exchange: string, kind: string, sessionDate: string): void;
+  rememberName(symbol: string, exchange: string, name: string): void;
+  names(): Record<string, string>;
   close(): void;
 };
 
@@ -78,6 +80,12 @@ export function openBookStore(filePath: string): BookStore {
       session_date TEXT NOT NULL,
       PRIMARY KEY (symbol, exchange, kind, session_date)
     );
+    CREATE TABLE IF NOT EXISTS listing_name (
+      symbol TEXT NOT NULL,
+      exchange TEXT NOT NULL,
+      name TEXT NOT NULL,
+      PRIMARY KEY (symbol, exchange)
+    );
   `);
 
   const existing = database.prepare("SELECT created_at FROM book WHERE id = 1").get() as { created_at: string } | undefined;
@@ -118,6 +126,10 @@ export function openBookStore(filePath: string): BookStore {
   );
   const insertAttempt = database.prepare(
     "INSERT OR REPLACE INTO feed_check (symbol, exchange, kind, session_date) VALUES (?, ?, ?, ?)",
+  );
+  const namesStatement = database.prepare("SELECT symbol, exchange, name FROM listing_name ORDER BY symbol, exchange");
+  const insertName = database.prepare(
+    "INSERT OR REPLACE INTO listing_name (symbol, exchange, name) VALUES (?, ?, ?)",
   );
 
   return {
@@ -213,6 +225,13 @@ export function openBookStore(filePath: string): BookStore {
     },
     markAttempt(symbol, exchange, kind, sessionDate) {
       insertAttempt.run(symbol, exchange, kind, sessionDate);
+    },
+    rememberName(symbol, exchange, name) {
+      insertName.run(symbol, exchange, name);
+    },
+    names() {
+      const rows = namesStatement.all() as { symbol: string; exchange: string; name: string }[];
+      return Object.fromEntries(rows.map((row) => [`${row.symbol}.${row.exchange}`, row.name]));
     },
     close() {
       database.close();

@@ -165,6 +165,42 @@ describe("search, closes, and deletion", () => {
     store.close();
   });
 
+  it("remembers a search name and leaves it in place when a trade sends none", async () => {
+    const { port, store } = await start(quietQuotes());
+    const named = await postTrade(port, {
+      side: "buy",
+      symbol: "AAPL",
+      exchange: "US",
+      tradingCurrency: "USD",
+      shares: 10,
+      fill: 180,
+      name: "Apple",
+    });
+    expect(named.listings[0]?.name).toBe("Apple");
+
+    const kept = await postTrade(port, {
+      side: "buy",
+      symbol: "AAPL",
+      exchange: "US",
+      tradingCurrency: "USD",
+      shares: 5,
+      fill: 190,
+    });
+    expect(kept.listings[0]?.name).toBe("Apple");
+
+    const replaced = await postTrade(port, {
+      side: "buy",
+      symbol: "AAPL",
+      exchange: "US",
+      tradingCurrency: "USD",
+      shares: 1,
+      fill: 200,
+      name: "Apple Inc",
+    });
+    expect(replaced.listings[0]?.name).toBe("Apple Inc");
+    store.close();
+  });
+
   it("refuses to delete a buy that a later sell needs", async () => {
     const { port, store } = await start(quietQuotes());
     const first = await postTrade(port, { side: "buy", symbol: "AAPL", exchange: "US", tradingCurrency: "USD", shares: 10, fill: 100 });
@@ -222,7 +258,7 @@ async function postTrade(port: number, body: unknown) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  return response.json() as Promise<{ activity: { id: string }[] }>;
+  return response.json() as Promise<{ activity: { id: string }[]; listings: { name: string | null }[] }>;
 }
 
 function listen(server: Server) {

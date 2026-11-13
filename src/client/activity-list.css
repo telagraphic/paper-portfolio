@@ -1,80 +1,46 @@
 @layer components {
-  .activity-list table {
-    width: 100%;
-    border-collapse: collapse;
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
   }
 
-  .activity-list caption {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  .activity-list th,
-  .activity-list td {
-    height: 44px;
-    padding: 0;
-    font-weight: 400;
-    text-align: left;
-    border-bottom: 1px solid var(--color-line);
-  }
-
+  .activity-list th:nth-child(3),
+  .activity-list td:nth-child(3),
   .activity-list th:nth-child(4),
-  .activity-list th:nth-child(5),
-  .activity-list td:nth-child(4),
-  .activity-list td:nth-child(5) {
-    width: var(--column-num);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .activity-list thead th {
-    color: var(--color-muted);
-  }
-
-  .activity-list .activity-empty {
-    width: auto;
-    color: var(--color-muted);
+  .activity-list td:nth-child(4) {
     text-align: left;
-    text-wrap: pretty;
   }
 
-  .activity-list button,
-  .delete-actions button {
-    min-height: 44px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: var(--radius);
+  .activity-list tbody tr:has(button):hover {
     background: transparent;
-    box-shadow: var(--shadow-border);
-    color: inherit;
-    font: inherit;
+  }
+
+  .activity-list tbody button {
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: var(--radius-button);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 18px;
     cursor: pointer;
-    transition-property: scale, box-shadow;
+    transition-property: scale;
     transition-duration: 160ms;
     transition-timing-function: ease-out;
   }
 
-  .activity-list button:hover,
-  .delete-actions button:hover {
-    box-shadow: var(--shadow-border-hover);
-  }
-
-  .activity-list button:active,
-  .delete-actions button:active {
+  .activity-list tbody button:active {
     scale: 0.96;
   }
 
   .delete-confirm {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 12px;
+    align-items: flex-start;
+    gap: var(--space-12);
+    animation: confirm-in 150ms ease-out;
   }
 
   .delete-confirm p,
@@ -84,19 +50,64 @@
   }
 
   .delete-notice {
-    color: var(--color-down);
+    color: var(--color-down-deep);
+    animation: confirm-in 150ms ease-out;
   }
 
   .delete-actions {
     display: flex;
-    gap: 12px;
+    gap: var(--space-8);
   }
 
-  .activity-sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
+  .delete-actions button {
+    min-height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--radius-button);
+    background: var(--color-button);
+    color: var(--color-button-label);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 18px;
+    cursor: pointer;
+    transition-property: scale;
+    transition-duration: 160ms;
+    transition-timing-function: ease-out;
+  }
+
+  .delete-actions .delete-keep {
+    background: transparent;
+    color: var(--color-fg);
+  }
+
+  .delete-actions button:active {
+    scale: 0.96;
+  }
+
+  .delete-actions button:focus-visible,
+  .activity-list tbody button:focus-visible {
+    outline: 2px solid var(--color-fg);
+    outline-offset: 2px;
+  }
+
+  @keyframes confirm-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .delete-confirm,
+    .delete-notice,
+    .activity-list tbody button,
+    .delete-actions button {
+      animation: none;
+      transition: none;
+    }
   }
 }

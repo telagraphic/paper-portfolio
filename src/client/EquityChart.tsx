@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
-import { ColorType, createChart, LineSeries, type UTCTimestamp } from "lightweight-charts";
+import type { UTCTimestamp } from "lightweight-charts";
 import type { EquityPoint } from "../book/book";
+import { mountAreaChart } from "./area-chart";
+import { formatUsd } from "./format";
 import { useChartFrame } from "./useChartFrame";
 
 export function EquityChart({ series }: { series: EquityPoint[] }) {
@@ -11,22 +13,19 @@ export function EquityChart({ series }: { series: EquityPoint[] }) {
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
-    const color = getComputedStyle(document.body).color;
-    const chart = createChart(element, {
-      autoSize: true,
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: color,
-        fontFamily: getComputedStyle(document.body).fontFamily,
-      },
-      grid: { vertLines: { visible: false }, horzLines: { visible: false } },
-      rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false },
+    let chart: ReturnType<typeof mountAreaChart> | null = null;
+    let cancelled = false;
+    void document.fonts.ready.then(() => {
+      if (cancelled) return;
+      chart = mountAreaChart(
+        element,
+        series.map((point) => ({ time: point.time as UTCTimestamp, value: point.equityUsd })),
+      );
     });
-    const line = chart.addSeries(LineSeries, { color, lineWidth: 2 });
-    line.setData(series.map((point) => ({ time: point.time as UTCTimestamp, value: point.equityUsd })));
-    chart.timeScale().fitContent();
-    return () => chart.remove();
+    return () => {
+      cancelled = true;
+      chart?.remove();
+    };
   }, [key, series]);
 
   return (
@@ -38,7 +37,9 @@ export function EquityChart({ series }: { series: EquityPoint[] }) {
         role="img"
         aria-label="Equity in US dollars"
         aria-busy={state === "loading"}
-      />
+      >
+        {series.length > 0 ? <span className="chart-last">{formatUsd(series[series.length - 1]?.equityUsd ?? 0)}</span> : null}
+      </div>
     </figure>
   );
 }

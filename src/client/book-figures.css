@@ -1,45 +1,48 @@
 @layer components {
-  .book-figures {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .book-opened {
-    margin: 0;
-    color: var(--color-muted);
-    text-wrap: pretty;
-  }
-
   .book-figures dl {
     display: grid;
-    grid-template-columns: minmax(12rem, 1.5fr) repeat(3, minmax(0, 1fr));
-    gap: 16px 24px;
-    align-items: end;
+    grid-template-columns: minmax(16rem, 1.6fr) repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto;
+    column-gap: var(--space-24);
+    row-gap: var(--space-8);
+    align-items: baseline;
     margin: 0;
   }
 
   .book-figures div {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    align-items: baseline;
   }
 
   .book-figures dt {
     color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    line-height: 14px;
+    text-transform: uppercase;
   }
 
   .book-figures dd {
-    width: var(--column-num);
     margin: 0;
     font-variant-numeric: tabular-nums;
   }
 
-  .book-figures .book-equity {
-    width: auto;
-    font-size: 2.75rem;
-    font-weight: 520;
+  .book-figures .book-equity dd {
+    color: var(--color-display);
+    font-size: 56px;
+    font-weight: 600;
     letter-spacing: -0.04em;
+    line-height: 1;
+  }
+
+  .book-figures div:not(.book-equity) dd {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
     line-height: 1;
   }
 
@@ -51,9 +54,10 @@
     color: var(--color-down);
   }
 
-  @media (max-width: 700px) {
-    .book-figures .book-equity {
-      font-size: 2.25rem;
+  @media (max-width: 800px) {
+    .book-figures .book-equity dd {
+      font-size: 40px;
+      line-height: 1;
     }
 
     .book-figures dl {

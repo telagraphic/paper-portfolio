@@ -55,4 +55,19 @@ describe("openBookStore", () => {
     expect(viewBook(second.read()).listings[0]?.symbol).toBe("AAPL");
     second.close();
   });
+
+  it("replaces a remembered name and keeps it across a reopen", () => {
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const filePath = join(directory, "book.sqlite");
+
+    const first = openBookStore(filePath);
+    first.rememberName("7203", "TSE", "Toyota");
+    first.rememberName("7203", "TSE", "Toyota Motor");
+    first.close();
+
+    const second = openBookStore(filePath);
+    expect(second.names()["7203.TSE"]).toBe("Toyota Motor");
+    second.close();
+  });
 });

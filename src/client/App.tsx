@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import type { ActivityView, BookView } from "../book/book";
+import type { ActivityView } from "../book/book";
 import { ActivityList } from "./ActivityList";
 import { BookFigures } from "./BookFigures";
 import { EquityChart } from "./EquityChart";
 import { listingKey } from "./format";
 import { ListingDetail } from "./ListingDetail";
 import { ListingList } from "./ListingList";
+import { type PageBook } from "./page-book";
 import { PageTabs, type PageTab } from "./PageTabs";
 import { TradeForm } from "./TradeForm";
 
@@ -16,7 +17,7 @@ const deleteErrors: Record<string, string> = {
 };
 
 export function App() {
-  const [book, setBook] = useState<BookView | null>(null);
+  const [book, setBook] = useState<PageBook | null>(null);
   const [tab, setTab] = useState<PageTab>("totals");
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
@@ -29,7 +30,7 @@ export function App() {
     fetch("/api/book", { signal: controller.signal, cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("The book could not be loaded.");
-        return response.json() as Promise<BookView>;
+        return response.json() as Promise<PageBook>;
       })
       .then(setBook)
       .catch((reason: unknown) => {
@@ -41,18 +42,21 @@ export function App() {
 
   const listingKeys = book?.listings.map((item) => listingKey(item)) ?? [];
   const listingKeyList = listingKeys.join("\n");
+  const listVisible = tab === "totals" || tab === "tickers";
   const entering =
-    knownListings.current === null ? [] : listingKeys.filter((key) => !knownListings.current?.has(key));
+    knownListings.current === null || !listVisible
+      ? []
+      : listingKeys.filter((key) => !knownListings.current?.has(key));
 
   useEffect(() => {
-    if (!book || tab === "trade") return;
+    if (!book || !listVisible) return;
     knownListings.current = new Set(listingKeyList.length === 0 ? [] : listingKeyList.split("\n"));
-  }, [book, tab, listingKeyList]);
+  }, [book, listVisible, listingKeyList]);
 
   async function confirmDelete() {
     if (!pending) return;
     const response = await fetch(`/api/trades/${encodeURIComponent(pending.id)}`, { method: "DELETE" });
-    const body = (await response.json()) as BookView & { error?: string };
+    const body = (await response.json()) as PageBook & { error?: string };
     if (!response.ok) {
       setDeleteNotice(deleteErrors[body.error ?? ""] ?? "The trade could not be deleted.");
       return;
@@ -79,40 +83,12 @@ export function App() {
             <BookFigures book={book} />
             <EquityChart series={book.equitySeries} />
             <ListingList listings={book.listings} selected={selected} onSelect={setSelected} entering={entering} />
-            <ActivityList
-              activity={book.activity}
-              pending={pending}
-              notice={deleteNotice}
-              onAsk={(trade) => {
-                setPending(trade);
-                setDeleteNotice("");
-              }}
-              onConfirm={() => void confirmDelete()}
-              onKeep={() => {
-                setPending(null);
-                setDeleteNotice("");
-              }}
-            />
           </>
         ) : null}
         {tab === "tickers" ? (
           <>
             <ListingDetail listing={listing} />
             <ListingList listings={book.listings} selected={selected} onSelect={setSelected} entering={entering} />
-            <ActivityList
-              activity={book.activity}
-              pending={pending}
-              notice={deleteNotice}
-              onAsk={(trade) => {
-                setPending(trade);
-                setDeleteNotice("");
-              }}
-              onConfirm={() => void confirmDelete()}
-              onKeep={() => {
-                setPending(null);
-                setDeleteNotice("");
-              }}
-            />
           </>
         ) : null}
         {tab === "trade" ? (
@@ -126,7 +102,27 @@ export function App() {
             }}
           />
         ) : null}
+        {tab === "history" ? (
+          <ActivityList
+            listings={book.listings}
+            activity={book.activity}
+            pending={pending}
+            notice={deleteNotice}
+            onAsk={(trade) => {
+              setPending(trade);
+              setDeleteNotice("");
+            }}
+            onConfirm={() => void confirmDelete()}
+            onKeep={() => {
+              setPending(null);
+              setDeleteNotice("");
+            }}
+          />
+        ) : null}
       </div>
+      <p className="page-credit">
+        <a href="https://www.tradingview.com/">Charts by TradingView</a>
+      </p>
     </main>
   );
 }

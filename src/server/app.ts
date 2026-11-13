@@ -50,7 +50,7 @@ async function handle(
 
   if (url.pathname === "/api/book" && request.method === "GET") {
     await refreshBook(store, quotes, now());
-    sendJson(response, 200, viewBook(store.read()));
+    sendJson(response, 200, presentBook(store));
     return;
   }
 
@@ -105,7 +105,8 @@ async function handle(
       return;
     }
     store.append(trade);
-    sendJson(response, 200, viewBook(store.read()));
+    if (parsed.name) store.rememberName(trade.symbol, trade.exchange, parsed.name);
+    sendJson(response, 200, presentBook(store));
     return;
   }
 
@@ -117,7 +118,7 @@ async function handle(
       return;
     }
     store.remove(id);
-    sendJson(response, 200, viewBook(store.read()));
+    sendJson(response, 200, presentBook(store));
     return;
   }
 
@@ -181,6 +182,18 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
   }
 }
 
+function presentBook(store: BookStore) {
+  const view = viewBook(store.read());
+  const names = store.names();
+  return {
+    ...view,
+    listings: view.listings.map((listing) => ({
+      ...listing,
+      name: names[`${listing.symbol}.${listing.exchange}`] ?? null,
+    })),
+  };
+}
+
 function parseTradeBody(body: unknown): { error: "invalid" } | {
   side: "buy" | "sell";
   symbol: string;
@@ -188,6 +201,7 @@ function parseTradeBody(body: unknown): { error: "invalid" } | {
   tradingCurrency: string;
   shares: number;
   fill: number | null;
+  name: string | null;
 } {
   if (!body || typeof body !== "object") return { error: "invalid" };
   const record = body as Record<string, unknown>;
@@ -208,7 +222,15 @@ function parseTradeBody(body: unknown): { error: "invalid" } | {
     tradingCurrency: record.tradingCurrency,
     shares: record.shares,
     fill: typeof record.fill === "number" ? record.fill : null,
+    name: readName(record.name),
   };
+}
+
+function readName(value: unknown) {
+  if (typeof value !== "string") return null;
+  const name = value.trim();
+  if (!name || name.length > 200) return null;
+  return name;
 }
 
 function resolveClientFile(clientDir: string, pathname: string): string | null {

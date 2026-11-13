@@ -3,12 +3,6 @@ const money = new Intl.NumberFormat("en-US", {
   currency: "USD",
 });
 
-const openedOn = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-
 export function formatUsd(value: number) {
   return money.format(value);
 }
@@ -18,12 +12,17 @@ export function formatUsdOrBlank(value: number | null) {
   return money.format(value);
 }
 
-export function formatOpened(createdAt: string) {
-  return openedOn.format(new Date(createdAt));
+export function formatSignedUsd(value: number | null) {
+  if (value == null) return "—";
+  if (value === 0) return money.format(0);
+  const body = money.format(Math.abs(value));
+  return value > 0 ? `+${body}` : `−${body}`;
 }
 
-export function formatWhen(recordedAt: string) {
-  return openedOn.format(new Date(recordedAt));
+export function formatSignedTrading(value: number, currency: string) {
+  if (value === 0) return formatTrading(0, currency);
+  const body = formatTrading(Math.abs(value), currency);
+  return value > 0 ? `+${body}` : `−${body}`;
 }
 
 export function formatShares(shares: number) {
@@ -48,6 +47,17 @@ export function formatRate(value: number | null) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
+}
+
+export function formatSignedRate(value: number | null) {
+  if (value == null) return "—";
+  const body = formatRate(Math.abs(value));
+  if (value === 0) return body;
+  return value > 0 ? `+${body}` : `−${body}`;
+}
+
+export function formatSessionDate(recordedAt: string) {
+  return recordedAt.slice(0, 10);
 }
 
 export function gainTone(value: number | null) {

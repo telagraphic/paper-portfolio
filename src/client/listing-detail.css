@@ -2,62 +2,89 @@
   .listing-detail {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-24);
   }
 
   .listing-detail h2 {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 12px;
+    gap: var(--space-8) var(--space-12);
     align-items: baseline;
     margin: 0;
-    font-size: 1.5rem;
-    font-weight: 520;
-    letter-spacing: -0.03em;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 28px;
     text-wrap: balance;
+  }
+
+  .listing-symbol,
+  .listing-title {
+    font-weight: 600;
   }
 
   .listing-meta {
     color: var(--color-muted);
-    font-size: 0.875rem;
+    font-size: 13px;
     font-weight: 400;
     letter-spacing: 0;
+    line-height: 16px;
   }
 
-  .listing-detail .chart-frame {
-    margin: 0;
-    color: var(--color-muted);
-  }
-
-  .listing-detail dl {
+  .listing-figures {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
-    gap: 16px 24px;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: var(--space-12);
     margin: 0;
   }
 
-  .listing-detail div {
+  .listing-figures div {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 2px;
+    min-width: 0;
   }
 
-  .listing-detail dt {
+  .listing-figures dt {
     color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.06em;
+    line-height: 14px;
+    text-transform: uppercase;
   }
 
-  .listing-detail dd {
+  .listing-figures dd {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
     margin: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 18px;
     font-variant-numeric: tabular-nums;
   }
 
-  .listing-detail .up {
-    color: var(--color-up);
+  .listing-figures .figure-sub {
+    font-size: 12px;
+    line-height: 16px;
   }
 
-  .listing-detail .down {
-    color: var(--color-down);
+  .listing-figures .up {
+    color: var(--color-up-deep);
   }
 
+  .listing-figures .down {
+    color: var(--color-down-deep);
+  }
+
+  @media (max-width: 1100px) {
+    .listing-figures {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      row-gap: var(--space-24);
+    }
+  }
 }

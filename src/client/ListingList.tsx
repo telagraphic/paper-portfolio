@@ -1,9 +1,9 @@
 import { useRef } from "react";
-import type { ListingView } from "../book/book";
-import { formatShares, formatTrading, formatUsd, formatUsdOrBlank, gainTone, listingKey } from "./format";
+import { formatRate, formatShares, formatSignedRate, formatSignedUsd, formatTrading, formatUsdOrBlank, gainTone, listingKey } from "./format";
+import { displayName, type PageListing } from "./page-book";
 
 type ListingListProps = {
-  listings: ListingView[];
+  listings: PageListing[];
   selected: string;
   onSelect: (key: string) => void;
   entering?: string[];
@@ -19,18 +19,21 @@ export function ListingList({ listings, selected, onSelect, entering = [] }: Lis
         <caption>Listings</caption>
         <thead>
           <tr>
-            <th scope="col">Listing</th>
+            <th scope="col">Symbol</th>
+            <th scope="col">Name</th>
+            <th scope="col">Day</th>
             <th scope="col">Shares</th>
-            <th scope="col">Mark</th>
-            <th scope="col">Day gain</th>
-            <th scope="col">Total gain</th>
+            <th scope="col">Price</th>
+            <th scope="col">Value</th>
+            <th scope="col">Weight</th>
+            <th scope="col">Total</th>
             <th scope="col">Realized</th>
           </tr>
         </thead>
         <tbody>
           {listings.length === 0 ? (
             <tr>
-              <td className="listing-empty" colSpan={6}>
+              <td className="listing-empty" colSpan={9}>
                 No listings.
               </td>
             </tr>
@@ -49,11 +52,18 @@ export function ListingList({ listings, selected, onSelect, entering = [] }: Lis
                       {key}
                     </button>
                   </th>
+                  <td className="listing-name">
+                    <span className="listing-name-scroll">{displayName(listing)}</span>
+                  </td>
+                  <td>
+                    <span className={pillClass(listing.dayReturn)}>{formatSignedRate(listing.dayReturn)}</span>
+                  </td>
                   <td>{formatShares(listing.shares)}</td>
                   <td>{formatTrading(listing.mark, listing.tradingCurrency)}</td>
-                  <td className={gainTone(listing.dayGainUsd)}>{formatUsdOrBlank(listing.dayGainUsd)}</td>
-                  <td className={gainTone(listing.totalGainUsd)}>{formatUsdOrBlank(listing.totalGainUsd)}</td>
-                  <td className={gainTone(listing.realizedGainUsd)}>{formatUsd(listing.realizedGainUsd)}</td>
+                  <td>{formatUsdOrBlank(listing.marketValueUsd)}</td>
+                  <td>{formatRate(listing.weight)}</td>
+                  <td className={gainTone(listing.totalGainUsd)}>{formatSignedUsd(listing.totalGainUsd)}</td>
+                  <td className={gainTone(listing.realizedGainUsd)}>{formatSignedUsd(listing.realizedGainUsd)}</td>
                 </tr>
               );
             })
@@ -62,4 +72,9 @@ export function ListingList({ listings, selected, onSelect, entering = [] }: Lis
       </table>
     </div>
   );
+}
+
+function pillClass(value: number | null) {
+  const tone = gainTone(value);
+  return tone ? `day-pill ${tone}` : "day-pill";
 }

@@ -1,58 +1,44 @@
 import { useEffect, useRef } from "react";
-import { AreaSeries, ColorType, createChart, HistogramSeries } from "lightweight-charts";
-import type { Candle, ListingView } from "../book/book";
-import { formatRate, formatShares, formatTrading, formatUsd, formatUsdOrBlank, gainTone, listingKey } from "./format";
+import type { Candle } from "../book/book";
+import { mountAreaChart } from "./area-chart";
+import {
+  formatRate,
+  formatShares,
+  formatSignedRate,
+  formatSignedTrading,
+  formatSignedUsd,
+  formatTrading,
+  formatUsdOrBlank,
+  gainTone,
+  listingKey,
+} from "./format";
+import { displayName, type PageListing } from "./page-book";
 import { useChartFrame } from "./useChartFrame";
 
 const noBars: Candle[] = [];
 
-export function ListingDetail({ listing }: { listing: ListingView | null }) {
+export function ListingDetail({ listing }: { listing: PageListing | null }) {
   const ref = useRef<HTMLDivElement>(null);
   const bars = listing?.bars ?? noBars;
-  const key = `${listing ? listingKey(listing) : "none"}:${bars.map((bar) => `${bar.date}:${bar.close}:${bar.volume}`).join("|")}`;
+  const key = `${listing ? listingKey(listing) : "none"}:${bars.map((bar) => `${bar.date}:${bar.close}`).join("|")}`;
   const state = useChartFrame(key);
 
   useEffect(() => {
     const element = ref.current;
     if (!element || bars.length === 0) return;
-    const color = getComputedStyle(document.body).color;
-    const line = cssColor("var(--color-fg)");
-    const up = cssColor("var(--color-up)");
-    const down = cssColor("var(--color-down)");
-    const chart = createChart(element, {
-      autoSize: true,
-      layout: {
-        background: { type: ColorType.Solid, color: "transparent" },
-        textColor: color,
-        fontFamily: getComputedStyle(document.body).fontFamily,
-      },
-      grid: { vertLines: { visible: false }, horzLines: { visible: false } },
-      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.08, bottom: 0.28 } },
-      timeScale: { borderVisible: false },
+    let chart: ReturnType<typeof mountAreaChart> | null = null;
+    let cancelled = false;
+    void document.fonts.ready.then(() => {
+      if (cancelled) return;
+      chart = mountAreaChart(
+        element,
+        bars.map((bar) => ({ time: bar.date, value: bar.close })),
+      );
     });
-    const area = chart.addSeries(AreaSeries, {
-      lineColor: line,
-      topColor: fade(line, 0.28),
-      bottomColor: fade(line, 0),
-      lineWidth: 2,
-    });
-    area.setData(bars.map((bar) => ({ time: bar.date, value: bar.close })));
-    const volume = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: "volume" },
-      priceScaleId: "volume",
-      lastValueVisible: false,
-      priceLineVisible: false,
-    });
-    chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
-    volume.setData(
-      bars.map((bar) => ({
-        time: bar.date,
-        value: bar.volume,
-        color: bar.close >= bar.open ? up : down,
-      })),
-    );
-    chart.timeScale().fitContent();
-    return () => chart.remove();
+    return () => {
+      cancelled = true;
+      chart?.remove();
+    };
   }, [bars, key]);
 
   return (
@@ -60,7 +46,8 @@ export function ListingDetail({ listing }: { listing: ListingView | null }) {
       <h2>
         {listing ? (
           <>
-            {listing.symbol}
+            <span className="listing-symbol">{listingKey(listing)}</span>
+            <span className="listing-title">{displayName(listing)}</span>
             <span className="listing-meta">
               {listing.exchange} · {listing.tradingCurrency}
             </span>
@@ -77,72 +64,54 @@ export function ListingDetail({ listing }: { listing: ListingView | null }) {
           role="img"
           aria-label="Selected listing close"
           aria-busy={state === "loading"}
-        />
+        >
+          <span className="chart-last">{formatTrading(bars[bars.length - 1]?.close ?? 0, listing?.tradingCurrency ?? "USD")}</span>
+        </div>
       ) : (
         <div className="chart-frame" data-state="ready" role="img" aria-label="Selected listing close">
           {listing ? "No session closes yet." : "Select a listing."}
         </div>
       )}
-      {listing ? (
-        <dl>
-          <div>
-            <dt>Shares</dt>
-            <dd>{formatShares(listing.shares)}</dd>
-          </div>
-          <div>
-            <dt>Average cost</dt>
-            <dd>{formatTrading(listing.averageCost, listing.tradingCurrency)}</dd>
-          </div>
-          <div>
-            <dt>Mark</dt>
-            <dd>{formatTrading(listing.mark, listing.tradingCurrency)}</dd>
-          </div>
-          <div>
-            <dt>Market value</dt>
-            <dd>{formatUsdOrBlank(listing.marketValueUsd)}</dd>
-          </div>
-          <div>
-            <dt>Weight</dt>
-            <dd>{formatRate(listing.weight)}</dd>
-          </div>
-          <div>
-            <dt>Day gain</dt>
-            <dd className={gainTone(listing.dayGainUsd)}>{formatUsdOrBlank(listing.dayGainUsd)}</dd>
-          </div>
-          <div>
-            <dt>Total gain</dt>
-            <dd className={gainTone(listing.totalGainUsd)}>{formatUsdOrBlank(listing.totalGainUsd)}</dd>
-          </div>
-          <div>
-            <dt>Realized gain</dt>
-            <dd className={gainTone(listing.realizedGainUsd)}>{formatUsd(listing.realizedGainUsd)}</dd>
-          </div>
-          <div>
-            <dt>Day return</dt>
-            <dd>{formatRate(listing.dayReturn)}</dd>
-          </div>
-          <div>
-            <dt>Total return</dt>
-            <dd className={gainTone(listing.totalReturn)}>{formatRate(listing.totalReturn)}</dd>
-          </div>
-        </dl>
-      ) : null}
+      {listing ? <ListingFigures listing={listing} /> : null}
     </section>
   );
 }
 
-function cssColor(value: string): string {
-  const probe = document.createElement("span");
-  probe.style.color = value;
-  document.body.append(probe);
-  const color = getComputedStyle(probe).color;
-  probe.remove();
-  return color;
+function ListingFigures({ listing }: { listing: PageListing }) {
+  const foreign = listing.tradingCurrency !== "USD";
+  return (
+    <dl className="listing-figures">
+      <Figure label="Avg cost" value={formatTrading(listing.averageCost, listing.tradingCurrency)} />
+      <Figure label="Day return" value={formatSignedRate(listing.dayReturn)} tone={gainTone(listing.dayReturn)} />
+      <Figure label="Total return" value={formatSignedRate(listing.totalReturn)} tone={gainTone(listing.totalReturn)} />
+      <div>
+        <dt>Day</dt>
+        <dd className={gainTone(listing.dayGainUsd)}>
+          <span>{formatSignedUsd(listing.dayGainUsd)}</span>
+          <span className="figure-sub">{formatSignedRate(listing.dayReturn)}</span>
+        </dd>
+      </div>
+      <Figure label="Shares" value={formatShares(listing.shares)} />
+      <Figure label="Mark" value={formatTrading(listing.mark, listing.tradingCurrency)} />
+      <Figure label="Market value" value={formatUsdOrBlank(listing.marketValueUsd)} />
+      <Figure label="Weight" value={formatRate(listing.weight)} />
+      <div>
+        <dt>Total</dt>
+        <dd className={gainTone(listing.totalGainUsd)}>
+          {foreign ? <span>{formatSignedTrading(listing.totalGain, listing.tradingCurrency)}</span> : null}
+          <span className={foreign ? "figure-sub" : undefined}>{formatSignedUsd(listing.totalGainUsd)}</span>
+        </dd>
+      </div>
+      <Figure label="Realized" value={formatSignedUsd(listing.realizedGainUsd)} tone={gainTone(listing.realizedGainUsd)} />
+    </dl>
+  );
 }
 
-function fade(color: string, alpha: number) {
-  const channels = color.match(/[\d.]+/g);
-  if (!channels || channels.length < 3) return color;
-  const [red, green, blue] = channels;
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+function Figure({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd className={tone}>{value}</dd>
+    </div>
+  );
 }
