@@ -1,12 +1,15 @@
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import type { Bar, BookSnapshot, FxClose, Split, Trade, TradeSide } from "../book/book.js";
+import { STARTING_CASH_USD, type Bar, type BookSnapshot, type CashDeposit, type FxClose, type Split, type Trade, type TradeSide } from "../book/book.js";
 
 export type BookStore = {
   read(): BookSnapshot;
   append(trade: Trade): void;
   remove(id: string): void;
+  setOpeningCash(usdAmount: number): void;
+  addDeposit(deposit: CashDeposit): void;
   saveBars(bars: Bar[]): void;
   saveFx(rows: FxClose[]): void;
   saveSplits(rows: Split[]): void;
@@ -14,6 +17,14 @@ export type BookStore = {
   markAttempt(symbol: string, exchange: string, kind: string, sessionDate: string): void;
   rememberName(symbol: string, exchange: string, name: string): void;
   names(): Record<string, string>;
+  readSetting(key: string): string | null;
+  writeSetting(key: string, value: string): void;
+  addFeedKey(id: string, token: string, createdAt: string): boolean;
+  removeFeedKey(id: string): void;
+  feedKeys(): { id: string; hint: string; createdAt: string }[];
+  activeFeedKey(): string | null;
+  apiHits(day: string): number;
+  recordApiHit(day: string): void;
   close(): void;
 };
 
@@ -86,14 +97,42 @@ export function openBookStore(filePath: string): BookStore {
       name TEXT NOT NULL,
       PRIMARY KEY (symbol, exchange)
     );
+    CREATE TABLE IF NOT EXISTS setting (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS api_hit (
+      day TEXT PRIMARY KEY,
+      hits INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS feed_key (
+      id TEXT PRIMARY KEY,
+      token TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS cash_deposit (
+      id TEXT PRIMARY KEY,
+      recorded_at TEXT NOT NULL,
+      usd_amount REAL NOT NULL
+    );
   `);
+
+  const bookColumns = database.prepare("PRAGMA table_info(book)").all() as { name: string }[];
+  if (!bookColumns.some((column) => column.name === "opening_cash_usd")) {
+    database.exec(`ALTER TABLE book ADD COLUMN opening_cash_usd REAL NOT NULL DEFAULT ${STARTING_CASH_USD}`);
+  }
 
   const existing = database.prepare("SELECT created_at FROM book WHERE id = 1").get() as { created_at: string } | undefined;
   if (!existing) {
     database.prepare("INSERT INTO book (id, created_at) VALUES (1, ?)").run(new Date().toISOString());
   }
 
-  const createdAtStatement = database.prepare("SELECT created_at FROM book WHERE id = 1");
+  const bookStatement = database.prepare("SELECT created_at, opening_cash_usd FROM book WHERE id = 1");
+  const updateOpening = database.prepare("UPDATE book SET opening_cash_usd = ? WHERE id = 1");
+  const depositsStatement = database.prepare(
+    "SELECT id, recorded_at, usd_amount FROM cash_deposit ORDER BY recorded_at, id",
+  );
+  const insertDeposit = database.prepare("INSERT INTO cash_deposit (id, recorded_at, usd_amount) VALUES (?, ?, ?)");
   const tradesStatement = database.prepare(
     "SELECT id, recorded_at, side, symbol, exchange, trading_currency, shares, fill, usd_amount FROM trade ORDER BY recorded_at, id",
   );
@@ -131,10 +170,29 @@ export function openBookStore(filePath: string): BookStore {
   const insertName = database.prepare(
     "INSERT OR REPLACE INTO listing_name (symbol, exchange, name) VALUES (?, ?, ?)",
   );
+  const readSettingStatement = database.prepare("SELECT value FROM setting WHERE key = ?");
+  const writeSettingStatement = database.prepare("INSERT OR REPLACE INTO setting (key, value) VALUES (?, ?)");
+  const deleteSettingStatement = database.prepare("DELETE FROM setting WHERE key = ?");
+  const readHitsStatement = database.prepare("SELECT hits FROM api_hit WHERE day = ?");
+  const recordHitStatement = database.prepare(
+    "INSERT INTO api_hit (day, hits) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET hits = hits + 1",
+  );
+  const feedKeysStatement = database.prepare("SELECT id, token, created_at FROM feed_key ORDER BY created_at DESC, id DESC");
+  const insertFeedKey = database.prepare("INSERT INTO feed_key (id, token, created_at) VALUES (?, ?, ?)");
+  const deleteFeedKey = database.prepare("DELETE FROM feed_key WHERE id = ?");
+  const legacyKey = readSettingStatement.get("eodhd_api_key") as { value: string } | undefined;
+  if (legacyKey?.value) {
+    const existing = feedKeysStatement.all() as { token: string }[];
+    if (!existing.some((row) => row.token === legacyKey.value)) {
+      insertFeedKey.run(randomUUID(), legacyKey.value, new Date().toISOString());
+    }
+    deleteSettingStatement.run("eodhd_api_key");
+  }
 
   return {
     read() {
-      const row = createdAtStatement.get() as { created_at: string };
+      const row = bookStatement.get() as { created_at: string; opening_cash_usd: number };
+      const deposits = depositsStatement.all() as { id: string; recorded_at: string; usd_amount: number }[];
       const trades = tradesStatement.all() as TradeRow[];
       const bars = barsStatement.all() as {
         symbol: string;
@@ -156,6 +214,12 @@ export function openBookStore(filePath: string): BookStore {
       }[];
       return {
         createdAt: row.created_at,
+        openingCashUsd: row.opening_cash_usd,
+        deposits: deposits.map((deposit) => ({
+          id: deposit.id,
+          recordedAt: deposit.recorded_at,
+          usdAmount: deposit.usd_amount,
+        })),
         trades: trades.map((trade) => ({
           id: trade.id,
           recordedAt: trade.recorded_at,
@@ -207,6 +271,12 @@ export function openBookStore(filePath: string): BookStore {
     remove(id) {
       deleteTradeRow.run(id);
     },
+    setOpeningCash(usdAmount) {
+      updateOpening.run(usdAmount);
+    },
+    addDeposit(deposit) {
+      insertDeposit.run(deposit.id, deposit.recordedAt, deposit.usdAmount);
+    },
     saveBars(bars) {
       for (const bar of bars) {
         insertBar.run(bar.symbol, bar.exchange, bar.date, bar.open, bar.high, bar.low, bar.close, bar.volume);
@@ -232,6 +302,44 @@ export function openBookStore(filePath: string): BookStore {
     names() {
       const rows = namesStatement.all() as { symbol: string; exchange: string; name: string }[];
       return Object.fromEntries(rows.map((row) => [`${row.symbol}.${row.exchange}`, row.name]));
+    },
+    readSetting(key) {
+      const row = readSettingStatement.get(key) as { value: string } | undefined;
+      return row?.value ?? null;
+    },
+    writeSetting(key, value) {
+      if (!value) {
+        deleteSettingStatement.run(key);
+        return;
+      }
+      writeSettingStatement.run(key, value);
+    },
+    addFeedKey(id, token, createdAt) {
+      const rows = feedKeysStatement.all() as { token: string }[];
+      if (rows.some((row) => row.token === token)) return false;
+      insertFeedKey.run(id, token, createdAt);
+      return true;
+    },
+    removeFeedKey(id) {
+      deleteFeedKey.run(id);
+    },
+    feedKeys() {
+      return (feedKeysStatement.all() as { id: string; token: string; created_at: string }[]).map((row) => ({
+        id: row.id,
+        hint: row.token.slice(-4),
+        createdAt: row.created_at,
+      }));
+    },
+    activeFeedKey() {
+      const row = (feedKeysStatement.all() as { token: string }[])[0];
+      return row?.token ?? null;
+    },
+    apiHits(day) {
+      const row = readHitsStatement.get(day) as { hits: number } | undefined;
+      return row?.hits ?? 0;
+    },
+    recordApiHit(day) {
+      recordHitStatement.run(day);
     },
     close() {
       database.close();

@@ -19,27 +19,38 @@ export type QuoteSource = {
   loadSplits(symbol: string, exchange: string, from: string): Promise<Split[]>;
 };
 
-export function createEodhdSource(apiKey: string, fetchImpl: typeof fetch = fetch): QuoteSource {
+export function createEodhdSource(
+  apiKey: string | (() => string),
+  fetchImpl: typeof fetch = fetch,
+  onRequest?: () => void,
+): QuoteSource {
+  const readKey = () => (typeof apiKey === "function" ? apiKey() : apiKey);
   return {
     async search(query) {
+      const key = readKey();
       const trimmed = query.trim();
-      if (!apiKey || !trimmed) return [];
+      if (!key || !trimmed) return [];
+      onRequest?.();
       const body = await getJson(
         fetchImpl,
-        `${HOST}/search/${encodeURIComponent(trimmed)}?api_token=${encodeURIComponent(apiKey)}&limit=15&fmt=json`,
+        `${HOST}/search/${encodeURIComponent(trimmed)}?api_token=${encodeURIComponent(key)}&limit=15&fmt=json`,
       );
       if (!Array.isArray(body)) return [];
       return body.flatMap(parseHit);
     },
     async loadHistory(symbol, exchange, from, to) {
-      if (!apiKey) return [];
-      const body = await getJson(fetchImpl, eodUrl(`${symbol}.${exchange}`, from, to, apiKey));
+      const key = readKey();
+      if (!key) return [];
+      onRequest?.();
+      const body = await getJson(fetchImpl, eodUrl(`${symbol}.${exchange}`, from, to, key));
       return parseBars(body, symbol, exchange);
     },
     async loadFx(currency, from, to) {
-      if (!apiKey || currency === "USD") return [];
+      const key = readKey();
+      if (!key || currency === "USD") return [];
+      onRequest?.();
       const pair = fxPair(currency);
-      const body = await getJson(fetchImpl, eodUrl(pair.symbol, from, to, apiKey));
+      const body = await getJson(fetchImpl, eodUrl(pair.symbol, from, to, key));
       return parseBars(body, pair.symbol, "FOREX")
         .map((bar) => ({
           currency,
@@ -49,10 +60,12 @@ export function createEodhdSource(apiKey: string, fetchImpl: typeof fetch = fetc
         .filter((row) => Number.isFinite(row.usdPerUnit) && row.usdPerUnit > 0);
     },
     async loadSplits(symbol, exchange, from) {
-      if (!apiKey) return [];
+      const key = readKey();
+      if (!key) return [];
+      onRequest?.();
       const body = await getJson(
         fetchImpl,
-        `${HOST}/splits/${encodeURIComponent(`${symbol}.${exchange}`)}?from=${from}&api_token=${encodeURIComponent(apiKey)}&fmt=json`,
+        `${HOST}/splits/${encodeURIComponent(`${symbol}.${exchange}`)}?from=${from}&api_token=${encodeURIComponent(key)}&fmt=json`,
       );
       if (!Array.isArray(body)) return [];
       return body.flatMap((row) => parseSplit(row, symbol, exchange));

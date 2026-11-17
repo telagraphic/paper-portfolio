@@ -1,39 +1,18 @@
 import type { ActivityView } from "../book/book";
 import { formatSessionDate, formatShares, formatTrading, listingKey } from "./format";
-import { displayName, type PageListing } from "./page-book";
+import { displayName, displaySymbol, type PageListing } from "./page-book";
 
 type ActivityListProps = {
   listings: PageListing[];
   activity: ActivityView[];
-  pending: ActivityView | null;
-  notice: string;
-  onAsk: (trade: ActivityView) => void;
-  onConfirm: () => void;
-  onKeep: () => void;
 };
 
-export function ActivityList({ listings, activity, pending, notice, onAsk, onConfirm, onKeep }: ActivityListProps) {
+export function ActivityList({ listings, activity }: ActivityListProps) {
   const names = new Map(listings.map((listing) => [listingKey(listing), listing.name]));
   const rows = [...activity].reverse();
 
   return (
     <div className="activity-list data-table">
-      {pending ? (
-        <section className="delete-confirm" aria-label="Confirm deletion">
-          <p>
-            Delete the {pending.side} of {formatShares(pending.shares)} {pending.symbol}.{pending.exchange}?
-          </p>
-          <div className="delete-actions">
-            <button type="button" onClick={onConfirm}>
-              Delete trade
-            </button>
-            <button type="button" className="delete-keep" onClick={onKeep}>
-              Keep trade
-            </button>
-          </div>
-        </section>
-      ) : null}
-      {notice ? <p className="delete-notice">{notice}</p> : null}
       <table>
         <caption>Buys and sells</caption>
         <thead>
@@ -45,13 +24,12 @@ export function ActivityList({ listings, activity, pending, notice, onAsk, onCon
             <th scope="col">Shares</th>
             <th scope="col">Price</th>
             <th scope="col">Value</th>
-            <th scope="col">Delete</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td className="listing-empty" colSpan={8}>
+              <td className="listing-empty" colSpan={7}>
                 No trades.
               </td>
             </tr>
@@ -60,7 +38,7 @@ export function ActivityList({ listings, activity, pending, notice, onAsk, onCon
               const key = listingKey(trade);
               return (
                 <tr key={trade.id}>
-                  <th scope="row">{key}</th>
+                  <th scope="row">{displaySymbol(trade)}</th>
                   <td className="listing-name">{displayName({ symbol: trade.symbol, name: names.get(key) ?? null })}</td>
                   <td>{formatSessionDate(trade.recordedAt)}</td>
                   <td>
@@ -71,11 +49,6 @@ export function ActivityList({ listings, activity, pending, notice, onAsk, onCon
                   <td>{formatShares(trade.shares)}</td>
                   <td>{formatTrading(trade.fill, trade.tradingCurrency)}</td>
                   <td>{formatTrading(trade.shares * trade.fill, trade.tradingCurrency)}</td>
-                  <td>
-                    <button type="button" onClick={() => onAsk(trade)}>
-                      Delete
-                    </button>
-                  </td>
                 </tr>
               );
             })

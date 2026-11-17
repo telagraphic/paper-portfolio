@@ -1,20 +1,45 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
-export type PageTab = "totals" | "tickers" | "trade" | "history";
+export type PageTab = "totals" | "tickers" | "trade" | "history" | "admin";
 
-const tabs: { id: PageTab; label: string }[] = [
+export type AdminTab = "cash" | "key" | "rules";
+
+type TabOption<T extends string> = {
+  id: T;
+  label: string;
+};
+
+const pageTabs: TabOption<PageTab>[] = [
   { id: "totals", label: "Totals" },
   { id: "tickers", label: "Tickers" },
   { id: "trade", label: "Buy/Sell" },
   { id: "history", label: "History" },
+  { id: "admin", label: "Admin" },
 ];
 
-type PageTabsProps = {
-  value: PageTab;
-  onChange: (value: PageTab) => void;
+export const adminTabs: TabOption<AdminTab>[] = [
+  { id: "cash", label: "Cash" },
+  { id: "key", label: "API key" },
+  { id: "rules", label: "Rules" },
+];
+
+type TabsProps<T extends string> = {
+  tabs: TabOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  label: string;
+  idPrefix: string;
+  tone?: "solid" | "subtle";
 };
 
-export function PageTabs({ value, onChange }: PageTabsProps) {
+export function Tabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  label,
+  idPrefix,
+  tone = "solid",
+}: TabsProps<T>) {
   const listRef = useRef<HTMLDivElement>(null);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const [pill, setPill] = useState({ left: 0, width: 0 });
@@ -37,14 +62,14 @@ export function PageTabs({ value, onChange }: PageTabsProps) {
       observer.disconnect();
       cancelAnimationFrame(frame);
     };
-  }, [value]);
+  }, [tabs, value]);
 
   return (
     <div
       ref={listRef}
-      className="page-tabs"
+      className={tone === "subtle" ? "page-tabs page-tabs-subtle" : "page-tabs"}
       role="tablist"
-      aria-label="Portfolio"
+      aria-label={label}
       data-ready={ready ? "true" : "false"}
     >
       <span className="page-tab-pill" style={{ left: pill.left, width: pill.width }} aria-hidden="true" />
@@ -56,10 +81,10 @@ export function PageTabs({ value, onChange }: PageTabsProps) {
           }}
           type="button"
           role="tab"
-          id={`page-tab-${tab.id}`}
+          id={`${idPrefix}-tab-${tab.id}`}
           className="page-tab"
           aria-selected={value === tab.id}
-          aria-controls={`page-panel-${tab.id}`}
+          aria-controls={`${idPrefix}-panel-${tab.id}`}
           tabIndex={value === tab.id ? 0 : -1}
           onClick={() => onChange(tab.id)}
           onKeyDown={(event) => {
@@ -76,4 +101,13 @@ export function PageTabs({ value, onChange }: PageTabsProps) {
       ))}
     </div>
   );
+}
+
+type PageTabsProps = {
+  value: PageTab;
+  onChange: (value: PageTab) => void;
+};
+
+export function PageTabs({ value, onChange }: PageTabsProps) {
+  return <Tabs tabs={pageTabs} value={value} onChange={onChange} label="Portfolio" idPrefix="page" />;
 }

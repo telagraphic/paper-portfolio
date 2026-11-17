@@ -1,28 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import type { ActivityView } from "../book/book";
 import { ActivityList } from "./ActivityList";
+import { AdminPanel } from "./AdminPanel";
 import { BookFigures } from "./BookFigures";
 import { EquityChart } from "./EquityChart";
 import { listingKey } from "./format";
-import { ListingDetail } from "./ListingDetail";
+import { ListingDetail, ListingFigures } from "./ListingDetail";
 import { ListingList } from "./ListingList";
-import { type PageBook } from "./page-book";
+import { formatCloseDate, latestCloseDate, type PageBook } from "./page-book";
 import { PageTabs, type PageTab } from "./PageTabs";
+import { TermList } from "./TermList";
 import { TradeForm } from "./TradeForm";
-
-const deleteErrors: Record<string, string> = {
-  "needed-for-sell": "Delete the sell first. This buy still has shares in a later sell.",
-  depends: "A later trade depends on this one.",
-  missing: "That trade is no longer in the book.",
-};
 
 export function App() {
   const [book, setBook] = useState<PageBook | null>(null);
   const [tab, setTab] = useState<PageTab>("totals");
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
-  const [pending, setPending] = useState<ActivityView | null>(null);
-  const [deleteNotice, setDeleteNotice] = useState("");
   const knownListings = useRef<Set<string> | null>(null);
 
   useEffect(() => {
@@ -53,28 +46,30 @@ export function App() {
     knownListings.current = new Set(listingKeyList.length === 0 ? [] : listingKeyList.split("\n"));
   }, [book, listVisible, listingKeyList]);
 
-  async function confirmDelete() {
-    if (!pending) return;
-    const response = await fetch(`/api/trades/${encodeURIComponent(pending.id)}`, { method: "DELETE" });
-    const body = (await response.json()) as PageBook & { error?: string };
-    if (!response.ok) {
-      setDeleteNotice(deleteErrors[body.error ?? ""] ?? "The trade could not be deleted.");
-      return;
-    }
-    setBook(body);
-    setPending(null);
-    setDeleteNotice("");
-  }
+  useEffect(() => {
+    if (tab !== "tickers" || listingKeyList.length === 0) return;
+    const keys = listingKeyList.split("\n");
+    if (keys.includes(selected)) return;
+    setSelected(keys[0]);
+  }, [tab, listingKeyList, selected]);
 
   if (error) return <p className="book-status">{error}</p>;
   if (!book) return <p className="book-status">Loading the book.</p>;
 
   const listing = book.listings.find((item) => listingKey(item) === selected) ?? null;
+  const updated = latestCloseDate(book.listings);
 
   return (
     <main className="page">
       <header className="page-head">
-        <h1 className="page-title">Paper Portfolio</h1>
+        <div className="page-title-row">
+          <h1 className="page-title">Paper Portfolio</h1>
+          {updated ? (
+            <p className="page-updated">
+              Last updated <time dateTime={updated}>{formatCloseDate(updated)}</time>
+            </p>
+          ) : null}
+        </div>
         <PageTabs value={tab} onChange={setTab} />
       </header>
       <div key={tab} className="tab-panel" id={`page-panel-${tab}`} role="tabpanel" aria-labelledby={`page-tab-${tab}`}>
@@ -88,7 +83,17 @@ export function App() {
         {tab === "tickers" ? (
           <>
             <ListingDetail listing={listing} />
-            <ListingList listings={book.listings} selected={selected} onSelect={setSelected} entering={entering} />
+            <div className="listing-sheet">
+              {listing ? <ListingFigures listing={listing} /> : null}
+              <ListingList
+                listings={book.listings}
+                selected={selected}
+                onSelect={setSelected}
+                entering={entering}
+                copySymbol
+              />
+              <TermList />
+            </div>
           </>
         ) : null}
         {tab === "trade" ? (
@@ -97,28 +102,13 @@ export function App() {
             onBook={(next, key) => {
               setBook(next);
               setSelected(key);
-              setPending(null);
-              setDeleteNotice("");
             }}
           />
         ) : null}
         {tab === "history" ? (
-          <ActivityList
-            listings={book.listings}
-            activity={book.activity}
-            pending={pending}
-            notice={deleteNotice}
-            onAsk={(trade) => {
-              setPending(trade);
-              setDeleteNotice("");
-            }}
-            onConfirm={() => void confirmDelete()}
-            onKeep={() => {
-              setPending(null);
-              setDeleteNotice("");
-            }}
-          />
+          <ActivityList listings={book.listings} activity={book.activity} />
         ) : null}
+        {tab === "admin" ? <AdminPanel book={book} onBook={setBook} /> : null}
       </div>
       <p className="page-credit">
         <a href="https://www.tradingview.com/">Charts by TradingView</a>

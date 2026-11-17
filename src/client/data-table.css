@@ -133,14 +133,14 @@
 
   .day-pill.up,
   .side-pill.up {
-    background: var(--color-up-pale);
-    color: var(--color-up-deep);
+    background: var(--color-up);
+    color: var(--color-up-pale);
   }
 
   .day-pill.down,
   .side-pill.down {
-    background: var(--color-down-pale);
-    color: var(--color-down-deep);
+    background: var(--color-down);
+    color: var(--color-display);
   }
 
   @media (prefers-reduced-motion: reduce) {

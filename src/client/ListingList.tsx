@@ -1,17 +1,41 @@
-import { useRef } from "react";
-import { formatRate, formatShares, formatSignedRate, formatSignedUsd, formatTrading, formatUsdOrBlank, gainTone, listingKey } from "./format";
-import { displayName, type PageListing } from "./page-book";
+import { useEffect, useRef, useState } from "react";
+import { FlowValue, rateFormat, sharesFormat, tradingPresentation, usdFormat } from "./FlowValue";
+import { gainTone, listingKey } from "./format";
+import { displaySymbol, distinctName, type PageListing } from "./page-book";
 
 type ListingListProps = {
   listings: PageListing[];
   selected: string;
   onSelect: (key: string) => void;
   entering?: string[];
+  copySymbol?: boolean;
 };
 
-export function ListingList({ listings, selected, onSelect, entering = [] }: ListingListProps) {
+export function ListingList({ listings, selected, onSelect, entering = [], copySymbol = false }: ListingListProps) {
   const enteringKeys = useRef<Set<string> | null>(null);
+  const copyTimer = useRef<number | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
   if (enteringKeys.current === null) enteringKeys.current = new Set(entering);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    };
+  }, []);
+
+  async function copyListing(key: string) {
+    try {
+      await navigator.clipboard.writeText(key);
+    } catch {
+      return;
+    }
+    setCopied(key);
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => {
+      setCopied(null);
+      copyTimer.current = null;
+    }, 1200);
+  }
 
   return (
     <div className="listing-list data-table">
@@ -48,22 +72,48 @@ export function ListingList({ listings, selected, onSelect, entering = [] }: Lis
                   onClick={() => onSelect(key)}
                 >
                   <th scope="row">
-                    <button type="button" onClick={() => onSelect(key)}>
-                      {key}
+                    <button
+                      type="button"
+                      data-copied={copied === key ? "true" : undefined}
+                      aria-label={copySymbol ? (copied === key ? `Copied ${key}` : `Copy ${key}`) : undefined}
+                      onClick={(event) => {
+                        if (!copySymbol) {
+                          onSelect(key);
+                          return;
+                        }
+                        event.stopPropagation();
+                        void copyListing(key);
+                      }}
+                    >
+                      {copySymbol && copied === key ? "Copied" : displaySymbol(listing)}
                     </button>
                   </th>
                   <td className="listing-name">
-                    <span className="listing-name-scroll">{displayName(listing)}</span>
+                    <span className="listing-name-scroll">{distinctName(listing) ?? "—"}</span>
                   </td>
                   <td>
-                    <span className={pillClass(listing.dayReturn)}>{formatSignedRate(listing.dayReturn)}</span>
+                    <span className={pillClass(listing.dayReturn)}>
+                      <FlowValue value={listing.dayReturn} format={rateFormat} signed intro />
+                    </span>
                   </td>
-                  <td>{formatShares(listing.shares)}</td>
-                  <td>{formatTrading(listing.mark, listing.tradingCurrency)}</td>
-                  <td>{formatUsdOrBlank(listing.marketValueUsd)}</td>
-                  <td>{formatRate(listing.weight)}</td>
-                  <td className={gainTone(listing.totalGainUsd)}>{formatSignedUsd(listing.totalGainUsd)}</td>
-                  <td className={gainTone(listing.realizedGainUsd)}>{formatSignedUsd(listing.realizedGainUsd)}</td>
+                  <td>
+                    <FlowValue value={listing.shares} format={sharesFormat} intro />
+                  </td>
+                  <td>
+                    <FlowValue value={listing.mark} {...tradingPresentation(listing.tradingCurrency)} intro />
+                  </td>
+                  <td>
+                    <FlowValue value={listing.marketValueUsd} format={usdFormat} intro />
+                  </td>
+                  <td>
+                    <FlowValue value={listing.weight} format={rateFormat} intro />
+                  </td>
+                  <td className={gainTone(listing.totalGainUsd)}>
+                    <FlowValue value={listing.totalGainUsd} format={usdFormat} signed intro />
+                  </td>
+                  <td className={gainTone(listing.realizedGainUsd)}>
+                    <FlowValue value={listing.realizedGainUsd} format={usdFormat} signed intro />
+                  </td>
                 </tr>
               );
             })

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { applyTrade, deleteTrade, STARTING_CASH_USD, viewBook, type BookSnapshot, type TradeInput } from "./book.js";
+import { addCash, applyTrade, deleteTrade, setOpeningCash, STARTING_CASH_USD, viewBook, type BookSnapshot, type TradeInput } from "./book.js";
 
 const createdAt = "2026-11-03T15:00:00.000Z";
 
 function emptyBook(): BookSnapshot {
-  return { createdAt, trades: [], bars: [], fxCloses: [], splits: [] };
+  return { createdAt, openingCashUsd: STARTING_CASH_USD, deposits: [], trades: [], bars: [], fxCloses: [], splits: [] };
 }
 
 function trade(overrides: Partial<TradeInput> = {}): TradeInput {
@@ -40,6 +40,30 @@ describe("viewBook", () => {
     expect(view.activity).toEqual([]);
     expect(view.equitySeries).toEqual([{ time: Date.parse(createdAt) / 1000, equityUsd: STARTING_CASH_USD }]);
     expect(view.createdAt).toBe(createdAt);
+    expect(view.openingCashUsd).toBe(STARTING_CASH_USD);
+  });
+
+  it("changes the opening cash and adds cash that can fund a buy", () => {
+    const raised = setOpeningCash(emptyBook(), 150_000);
+    if ("error" in raised) throw new Error(raised.error);
+    expect(viewBook(raised.snapshot).cashUsd).toBe(150_000);
+    expect(viewBook(raised.snapshot).equitySeries[0]?.equityUsd).toBe(150_000);
+
+    const spent = bought();
+    expect(setOpeningCash(spent, 1_000)).toEqual({ error: "has-trades" });
+    expect(setOpeningCash(spent, 200_000)).toEqual({ error: "has-trades" });
+
+    const funded = addCash(emptyBook(), {
+      id: "d1",
+      recordedAt: "2026-11-03T15:30:00.000Z",
+      usdAmount: 500,
+    });
+    if ("error" in funded) throw new Error(funded.error);
+    expect(viewBook(funded.snapshot).cashUsd).toBe(100_500);
+    expect(applyTrade(emptyBook(), trade({ shares: 10, fill: 10_050 }))).toEqual({ error: "insufficient-cash" });
+    const boughtAfter = applyTrade(funded.snapshot, trade({ shares: 10, fill: 10_050 }));
+    if ("error" in boughtAfter) throw new Error(boughtAfter.error);
+    expect(viewBook(boughtAfter.snapshot).cashUsd).toBe(0);
   });
 
   it("does not include the quote key in the book view", () => {

@@ -51,6 +51,10 @@ _Avoid_: Official profit, booked P&L
 The uninvested US dollars in the paper portfolio.
 _Avoid_: Balance, buying power
 
+**Invested**:
+The reporting-currency value of the positions still held. Equity is cash plus invested.
+_Avoid_: Cost, principal
+
 **Equity**:
 Cash plus every position at its mark, in the reporting currency.
 _Avoid_: Master value, portfolio value

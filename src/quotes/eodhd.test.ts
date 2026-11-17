@@ -61,6 +61,31 @@ describe("createEodhdSource", () => {
     ]);
   });
 
+  it("reads a replacement key on the next request and counts the call", async () => {
+    const keys = ["first-key-aaaa", "second-key-bbbb"];
+    const calls: string[] = [];
+    let hits = 0;
+    const quotes = createEodhdSource(
+      () => keys[0] ?? "",
+      async (url) => {
+        calls.push(String(url));
+        return json([]);
+      },
+      () => {
+        hits += 1;
+      },
+    );
+
+    await quotes.search("aapl");
+    keys.shift();
+    await quotes.search("aapl");
+
+    expect(hits).toBe(2);
+    expect(calls[0]).toContain("first-key-aaaa");
+    expect(calls[1]).toContain("second-key-bbbb");
+    expect(calls[0]).not.toContain("second-key-bbbb");
+  });
+
   it("does not call the feed without a key", async () => {
     let called = false;
     const quotes = createEodhdSource("", async () => {

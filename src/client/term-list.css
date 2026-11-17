@@ -1,0 +1,48 @@
+@layer components {
+  .listing-sheet .term-table {
+    margin-top: var(--space-44);
+  }
+
+  .listing-sheet .term-table table {
+    min-width: 960px;
+    table-layout: fixed;
+  }
+
+  .term-table th,
+  .term-table td {
+    height: auto;
+    padding: 16px 0 16px 24px;
+    white-space: normal;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .term-table thead th {
+    height: 32px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .term-table th:first-child,
+  .term-table td:first-child {
+    width: 10%;
+  }
+
+  .term-table th:nth-child(2),
+  .term-table td:nth-child(2) {
+    width: 90%;
+  }
+
+  .term-table tbody th {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 20px;
+  }
+
+  .term-table td {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+  }
+}

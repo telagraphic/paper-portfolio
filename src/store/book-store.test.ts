@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { applyTrade, viewBook } from "../book/book.js";
+import { STARTING_CASH_USD, applyTrade, viewBook } from "../book/book.js";
 import { openBookStore } from "./book-store.js";
 
 const directories: string[] = [];
@@ -68,6 +68,47 @@ describe("openBookStore", () => {
 
     const second = openBookStore(filePath);
     expect(second.names()["7203.TSE"]).toBe("Toyota Motor");
+    second.close();
+  });
+
+  it("keeps a saved feed key and the day's request count", () => {
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const filePath = join(directory, "book.sqlite");
+
+    const first = openBookStore(filePath);
+    first.addFeedKey("older", "older-key-1111", "2026-11-16T12:00:00.000Z");
+    first.addFeedKey("newer", "fresh-key-1234", "2026-11-16T13:00:00.000Z");
+    first.recordApiHit("2026-11-16");
+    first.recordApiHit("2026-11-16");
+    first.close();
+
+    const second = openBookStore(filePath);
+    expect(second.activeFeedKey()).toBe("fresh-key-1234");
+    expect(second.feedKeys().map((key) => key.hint)).toEqual(["1234", "1111"]);
+    expect(second.apiHits("2026-11-16")).toBe(2);
+    second.removeFeedKey("newer");
+    expect(second.activeFeedKey()).toBe("older-key-1111");
+    second.removeFeedKey("older");
+    expect(second.activeFeedKey()).toBeNull();
+    second.close();
+  });
+
+  it("keeps a changed opening cash and added cash", () => {
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const filePath = join(directory, "book.sqlite");
+
+    const first = openBookStore(filePath);
+    expect(first.read().openingCashUsd).toBe(STARTING_CASH_USD);
+    first.setOpeningCash(125_000);
+    first.addDeposit({ id: "d1", recordedAt: "2026-11-16T15:00:00.000Z", usdAmount: 2_500 });
+    first.close();
+
+    const second = openBookStore(filePath);
+    const view = viewBook(second.read());
+    expect(view.openingCashUsd).toBe(125_000);
+    expect(view.cashUsd).toBe(127_500);
     second.close();
   });
 });

@@ -8,14 +8,29 @@
   .listing-list.data-table td {
     width: 10%;
     padding: 0 0 0 24px;
-    overflow: hidden;
     text-align: left;
+  }
+
+  .listing-list tbody th:first-child {
+    padding: 0;
+  }
+
+  .listing-list tbody th:first-child button {
+    width: 100%;
+    min-height: 56px;
+    padding-left: 24px;
+    justify-content: flex-start;
+  }
+
+  .listing-list tbody button[data-copied="true"] {
+    color: var(--color-muted);
   }
 
   .listing-list.data-table th:nth-child(2),
   .listing-list.data-table td:nth-child(2) {
     width: 20%;
     max-width: 0;
+    overflow: hidden;
   }
 
   .listing-name-scroll {

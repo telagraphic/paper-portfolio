@@ -2,7 +2,32 @@
   .trade-form {
     display: flex;
     flex-direction: column;
-    gap: var(--space-12);
+    gap: var(--space-24);
+  }
+
+  .book-figures.trade-figures {
+    width: auto;
+  }
+
+  .book-figures.trade-figures dl {
+    grid-template-columns: max-content max-content;
+    justify-content: start;
+  }
+
+  .book-figures.trade-figures div,
+  .book-figures.trade-figures div:not(.book-equity) {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .book-figures.trade-figures div:not(.book-equity) dd {
+    align-items: flex-start;
+    margin-top: 35px;
+    color: var(--color-fg);
+  }
+
+  .book-figures.trade-figures dd[data-empty] {
+    color: var(--color-muted);
   }
 
   .trade-panel {
@@ -182,22 +207,6 @@
   .trade-form button:focus-visible {
     outline: 2px solid var(--color-fg);
     outline-offset: 2px;
-  }
-
-  .trade-cash,
-  .trade-total {
-    margin: 0;
-    color: var(--color-muted);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .trade-cash span,
-  .trade-total span {
-    color: var(--color-fg);
-  }
-
-  .trade-total span[data-empty] {
-    color: var(--color-muted);
   }
 
   .trade-form .data-table {

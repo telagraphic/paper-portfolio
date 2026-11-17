@@ -33,6 +33,9 @@
     color-scheme: light;
     --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "Geist Mono", ui-monospace, monospace;
+    --font-size-title: 40px;
+    --font-weight-title: 100;
+    --line-height-title: 1.1;
     --color-bg: #f4f4f5;
     --color-fg: #171717;
     --color-display: #141414;

@@ -1,18 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { Candle } from "../book/book";
 import { mountAreaChart } from "./area-chart";
-import {
-  formatRate,
-  formatShares,
-  formatSignedRate,
-  formatSignedTrading,
-  formatSignedUsd,
-  formatTrading,
-  formatUsdOrBlank,
-  gainTone,
-  listingKey,
-} from "./format";
-import { displayName, type PageListing } from "./page-book";
+import type { Format } from "@number-flow/react";
+import { FlowValue, rateFormat, sharesFormat, tradingPresentation, usdFormat } from "./FlowValue";
+import { formatTrading, gainTone, listingKey } from "./format";
+import { displaySymbol, distinctName, type PageListing } from "./page-book";
 import { useChartFrame } from "./useChartFrame";
 
 const noBars: Candle[] = [];
@@ -46,10 +38,10 @@ export function ListingDetail({ listing }: { listing: PageListing | null }) {
       <h2>
         {listing ? (
           <>
-            <span className="listing-symbol">{listingKey(listing)}</span>
-            <span className="listing-title">{displayName(listing)}</span>
+            <span className="listing-symbol">{displaySymbol(listing)}</span>
+            {distinctName(listing) ? <span className="listing-title">{distinctName(listing)}</span> : null}
             <span className="listing-meta">
-              {listing.exchange} · {listing.tradingCurrency}
+              {listing.exchange === "US" ? `US · ${listing.tradingCurrency}` : listing.tradingCurrency}
             </span>
           </>
         ) : (
@@ -72,46 +64,68 @@ export function ListingDetail({ listing }: { listing: PageListing | null }) {
           {listing ? "No session closes yet." : "Select a listing."}
         </div>
       )}
-      {listing ? <ListingFigures listing={listing} /> : null}
     </section>
   );
 }
 
-function ListingFigures({ listing }: { listing: PageListing }) {
+export function ListingFigures({ listing }: { listing: PageListing }) {
+  const trading = tradingPresentation(listing.tradingCurrency);
   const foreign = listing.tradingCurrency !== "USD";
   return (
     <dl className="listing-figures">
-      <Figure label="Avg cost" value={formatTrading(listing.averageCost, listing.tradingCurrency)} />
-      <Figure label="Day return" value={formatSignedRate(listing.dayReturn)} tone={gainTone(listing.dayReturn)} />
-      <Figure label="Total return" value={formatSignedRate(listing.totalReturn)} tone={gainTone(listing.totalReturn)} />
+      <Figure label="Avg cost" value={listing.averageCost} format={trading.format} suffix={trading.suffix} />
+      <div className="listing-figure-pair">
+        <Figure label="Day return" value={listing.dayReturn} format={rateFormat} signed tone={gainTone(listing.dayReturn)} />
+        <Figure label="Total return" value={listing.totalReturn} format={rateFormat} signed tone={gainTone(listing.totalReturn)} />
+      </div>
       <div>
         <dt>Day</dt>
         <dd className={gainTone(listing.dayGainUsd)}>
-          <span>{formatSignedUsd(listing.dayGainUsd)}</span>
-          <span className="figure-sub">{formatSignedRate(listing.dayReturn)}</span>
+          <FlowValue value={listing.dayGainUsd} format={usdFormat} signed />
+          <span className="figure-sub">
+            <FlowValue value={listing.dayReturn} format={rateFormat} signed />
+          </span>
         </dd>
       </div>
-      <Figure label="Shares" value={formatShares(listing.shares)} />
-      <Figure label="Mark" value={formatTrading(listing.mark, listing.tradingCurrency)} />
-      <Figure label="Market value" value={formatUsdOrBlank(listing.marketValueUsd)} />
-      <Figure label="Weight" value={formatRate(listing.weight)} />
+      <Figure label="Shares" value={listing.shares} format={sharesFormat} />
+      <Figure label="Mark" value={listing.mark} format={trading.format} suffix={trading.suffix} />
+      <Figure label="Market value" value={listing.marketValueUsd} format={usdFormat} />
+      <Figure label="Weight" value={listing.weight} format={rateFormat} />
       <div>
         <dt>Total</dt>
         <dd className={gainTone(listing.totalGainUsd)}>
-          {foreign ? <span>{formatSignedTrading(listing.totalGain, listing.tradingCurrency)}</span> : null}
-          <span className={foreign ? "figure-sub" : undefined}>{formatSignedUsd(listing.totalGainUsd)}</span>
+          {foreign ? <FlowValue value={listing.totalGain} format={trading.format} suffix={trading.suffix} signed /> : null}
+          <span className={foreign ? "figure-sub" : undefined}>
+            <FlowValue value={listing.totalGainUsd} format={usdFormat} signed />
+          </span>
         </dd>
       </div>
-      <Figure label="Realized" value={formatSignedUsd(listing.realizedGainUsd)} tone={gainTone(listing.realizedGainUsd)} />
+      <Figure label="Realized" value={listing.realizedGainUsd} format={usdFormat} signed tone={gainTone(listing.realizedGainUsd)} />
     </dl>
   );
 }
 
-function Figure({ label, value, tone }: { label: string; value: string; tone?: string }) {
+function Figure({
+  label,
+  value,
+  format,
+  suffix,
+  signed,
+  tone,
+}: {
+  label: string;
+  value: number | null;
+  format: Format;
+  suffix?: string;
+  signed?: boolean;
+  tone?: string;
+}) {
   return (
     <div>
       <dt>{label}</dt>
-      <dd className={tone}>{value}</dd>
+      <dd className={tone}>
+        <FlowValue value={value} format={format} suffix={suffix} signed={signed} />
+      </dd>
     </div>
   );
 }

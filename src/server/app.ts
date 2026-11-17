@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize, sep } from "node:path";
-import { applyTrade, deleteTrade, viewBook, type TradeInput } from "../book/book.js";
+import { addCash, applyTrade, deleteTrade, setOpeningCash, viewBook, type TradeInput } from "../book/book.js";
 import { createEodhdSource, type QuoteSource } from "../quotes/eodhd.js";
 import type { BookStore } from "../store/book-store.js";
 import { ensureFx, ensureHistory, fxForTrade, refreshBook } from "./refresh.js";
@@ -22,9 +22,15 @@ type AppOptions = {
   now?: () => Date;
 };
 
+const FREE_DAILY_REQUESTS = 20;
+
 export function createApp(store: BookStore, clientDir: string, options: AppOptions = {}) {
-  const quotes = options.quotes ?? createEodhdSource(process.env.EODHD_API_KEY ?? "");
   const now = options.now ?? (() => new Date());
+  const quotes = options.quotes ?? createEodhdSource(
+    () => store.activeFeedKey() || process.env.EODHD_API_KEY || "",
+    fetch,
+    () => store.recordApiHit(utcDay(now())),
+  );
   let previousStamp = "";
   const recordedAt = () => {
     let stamp = now().toISOString();
@@ -122,7 +128,77 @@ async function handle(
     return;
   }
 
-  if (url.pathname === "/api/book" || url.pathname === "/api/trades" || url.pathname === "/api/search") {
+  if (url.pathname === "/api/admin" && request.method === "GET") {
+    sendJson(response, 200, adminView(store, now()));
+    return;
+  }
+
+  if (url.pathname === "/api/admin" && request.method === "PUT") {
+    const key = readApiKey(await readJson(request));
+    if (!key) {
+      sendJson(response, 400, { error: "invalid" });
+      return;
+    }
+    store.addFeedKey(randomUUID(), key, now().toISOString());
+    sendJson(response, 200, adminView(store, now()));
+    return;
+  }
+
+  if (url.pathname === "/api/admin/opening" && request.method === "PUT") {
+    const amount = readAmount(await readJson(request));
+    if (amount == null) {
+      sendJson(response, 400, { error: "invalid" });
+      return;
+    }
+    const result = setOpeningCash(store.read(), amount);
+    if ("error" in result) {
+      sendJson(response, 400, result);
+      return;
+    }
+    store.setOpeningCash(result.snapshot.openingCashUsd);
+    sendJson(response, 200, presentBook(store));
+    return;
+  }
+
+  if (url.pathname === "/api/admin/cash" && request.method === "POST") {
+    const amount = readAmount(await readJson(request));
+    if (amount == null) {
+      sendJson(response, 400, { error: "invalid" });
+      return;
+    }
+    const deposit = { id: randomUUID(), recordedAt: now().toISOString(), usdAmount: amount };
+    const result = addCash(store.read(), deposit);
+    if ("error" in result) {
+      sendJson(response, 400, result);
+      return;
+    }
+    const saved = result.snapshot.deposits.at(-1);
+    if (!saved) {
+      sendJson(response, 400, { error: "invalid" });
+      return;
+    }
+    store.addDeposit(saved);
+    sendJson(response, 200, presentBook(store));
+    return;
+  }
+
+  if (request.method === "DELETE" && url.pathname.startsWith("/api/admin/keys/")) {
+    const id = decodeURIComponent(url.pathname.slice("/api/admin/keys/".length));
+    if (!id || id.includes("/")) {
+      sendJson(response, 400, { error: "invalid" });
+      return;
+    }
+    store.removeFeedKey(id);
+    sendJson(response, 200, adminView(store, now()));
+    return;
+  }
+
+  if (
+    url.pathname === "/api/book" ||
+    url.pathname === "/api/trades" ||
+    url.pathname === "/api/search" ||
+    url.pathname === "/api/admin"
+  ) {
     response.writeHead(405).end("Method not allowed");
     return;
   }
@@ -164,6 +240,13 @@ function sendJson(response: ServerResponse, status: number, body: unknown) {
     "cache-control": "no-store",
   });
   response.end(JSON.stringify(body));
+}
+
+function readAmount(body: unknown): number | null {
+  if (!body || typeof body !== "object") return null;
+  const amount = (body as { amount?: unknown }).amount;
+  if (typeof amount !== "number" || !Number.isFinite(amount)) return null;
+  return amount;
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -224,6 +307,31 @@ function parseTradeBody(body: unknown): { error: "invalid" } | {
     fill: typeof record.fill === "number" ? record.fill : null,
     name: readName(record.name),
   };
+}
+
+function adminView(store: BookStore, now: Date) {
+  const keys = store.feedKeys();
+  const used = store.apiHits(utcDay(now));
+  return {
+    day: utcDay(now),
+    limit: FREE_DAILY_REQUESTS,
+    used,
+    left: Math.max(0, FREE_DAILY_REQUESTS - used),
+    keys: keys.map((key, index) => ({ id: key.id, hint: key.hint, active: index === 0 })),
+  };
+}
+
+function utcDay(now: Date) {
+  return now.toISOString().slice(0, 10);
+}
+
+function readApiKey(body: unknown) {
+  if (!body || typeof body !== "object") return null;
+  const value = (body as { apiKey?: unknown }).apiKey;
+  if (typeof value !== "string") return null;
+  const key = value.trim();
+  if (!key || key.length > 200 || /\s/.test(key)) return null;
+  return key;
 }
 
 function readName(value: unknown) {

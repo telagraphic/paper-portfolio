@@ -221,6 +221,54 @@ describe("search, closes, and deletion", () => {
     expect(body.activity).toHaveLength(1);
     store.close();
   });
+
+  it("saves a feed key without sending it back", async () => {
+    const { port, store } = await start(quietQuotes());
+    const saved = await fetch(`http://127.0.0.1:${port}/api/admin`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ apiKey: "fresh-key-1234" }),
+    });
+    expect(saved.status).toBe(200);
+    const body = (await saved.json()) as { keys: { id: string; hint: string; active: boolean }[]; limit: number; used: number };
+    expect(body.limit).toBe(20);
+    expect(body.used).toBe(0);
+    expect(body.keys).toHaveLength(1);
+    expect(body.keys[0]).toMatchObject({ hint: "1234", active: true });
+    expect(JSON.stringify(body)).not.toContain("fresh-key-1234");
+    expect(store.activeFeedKey()).toBe("fresh-key-1234");
+
+    const removed = await fetch(`http://127.0.0.1:${port}/api/admin/keys/${body.keys[0]?.id}`, { method: "DELETE" });
+    expect(removed.status).toBe(200);
+    expect(store.activeFeedKey()).toBeNull();
+    store.close();
+  });
+});
+
+describe("admin cash", () => {
+  it("changes the opening cash and adds cash to the book", async () => {
+    const { port, store } = await start(quietQuotes(), () => new Date("2026-11-16T16:00:00.000Z"));
+    const opened = await fetch(`http://127.0.0.1:${port}/api/admin/opening`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ amount: 120_000 }),
+    });
+    const openedBody = (await opened.json()) as { openingCashUsd: number; cashUsd: number; equityUsd: number };
+    expect(opened.status).toBe(200);
+    expect(openedBody).toMatchObject({ openingCashUsd: 120_000, cashUsd: 120_000, equityUsd: 120_000 });
+
+    const added = await fetch(`http://127.0.0.1:${port}/api/admin/cash`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ amount: 1_000 }),
+    });
+    const addedBody = (await added.json()) as { cashUsd: number; equityUsd: number };
+    expect(added.status).toBe(200);
+    expect(addedBody.cashUsd).toBe(121_000);
+    expect(addedBody.equityUsd).toBe(121_000);
+    expect(viewBook(store.read()).cashUsd).toBe(121_000);
+    store.close();
+  });
 });
 
 function quietQuotes(): QuoteSource {

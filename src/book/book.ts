@@ -39,8 +39,16 @@ export type Split = {
   denominator: number;
 };
 
+export type CashDeposit = {
+  id: string;
+  recordedAt: string;
+  usdAmount: number;
+};
+
 export type BookSnapshot = {
   createdAt: string;
+  openingCashUsd: number;
+  deposits: CashDeposit[];
   trades: Trade[];
   bars: Bar[];
   fxCloses: FxClose[];
@@ -65,7 +73,8 @@ export type BookError =
   | "mark"
   | "fx-required"
   | "insufficient-cash"
-  | "insufficient-shares";
+  | "insufficient-shares"
+  | "has-trades";
 
 export type DeleteError = "missing" | "needed-for-sell" | "depends";
 
@@ -113,6 +122,7 @@ export type EquityPoint = {
 };
 
 export type BookView = {
+  openingCashUsd: number;
   cashUsd: number;
   equityUsd: number;
   dayGainUsd: number | null;
@@ -144,6 +154,7 @@ export function viewBook(snapshot: BookSnapshot): BookView {
   const listings = listingsFrom(snapshot, state, latestDate(snapshot));
   const equityCents = equityCentsFrom(state.cashCents, listings);
   return {
+    openingCashUsd: snapshot.openingCashUsd,
     cashUsd: dollars(state.cashCents),
     equityUsd: dollars(equityCents),
     dayGainUsd: sumOrNull(listings, (listing) => listing.dayGainUsd),
@@ -171,6 +182,34 @@ export function applyTrade(
   const trade = tradeFromInput(input);
   if ("error" in trade) return trade;
   const next = { ...snapshot, trades: [...snapshot.trades, trade] };
+  const replay = evolve(next, null);
+  if (replay.error) return { error: replay.error };
+  return { snapshot: next };
+}
+
+export function setOpeningCash(
+  snapshot: BookSnapshot,
+  usdAmount: number,
+): { snapshot: BookSnapshot } | { error: BookError } {
+  if (snapshot.trades.length > 0) return { error: "has-trades" };
+  const amount = roundedMoney(usdAmount);
+  if (amount == null || amount < 0) return { error: "invalid" };
+  const next = { ...snapshot, openingCashUsd: amount };
+  const replay = evolve(next, null);
+  if (replay.error) return { error: replay.error };
+  return { snapshot: next };
+}
+
+export function addCash(
+  snapshot: BookSnapshot,
+  input: CashDeposit,
+): { snapshot: BookSnapshot } | { error: BookError } {
+  const amount = roundedMoney(input.usdAmount);
+  if (amount == null || amount <= 0 || !input.id || !input.recordedAt) return { error: "invalid" };
+  const next = {
+    ...snapshot,
+    deposits: [...snapshot.deposits, { id: input.id, recordedAt: input.recordedAt, usdAmount: amount }],
+  };
   const replay = evolve(next, null);
   if (replay.error) return { error: replay.error };
   return { snapshot: next };
@@ -215,12 +254,26 @@ function tradeFromInput(input: TradeInput): Trade | { error: BookError } {
 
 function evolve(snapshot: BookSnapshot, asOf: string | null): { error?: BookError; cashCents: number; positions: Map<string, Position> } {
   const limit = asOf ?? "9999-12-31";
-  let cashCents = cents(STARTING_CASH_USD);
+  let cashCents = cents(snapshot.openingCashUsd);
   const positions = new Map<string, Position>();
   const listingsWithBars = new Set(
     snapshot.bars.filter((bar) => bar.date <= limit).map((bar) => listingKey(bar)),
   );
   const events: { date: string; order: number; time: string; run: () => BookError | null }[] = [];
+
+  for (const deposit of snapshot.deposits) {
+    const date = dateOf(deposit.recordedAt);
+    if (date > limit) continue;
+    events.push({
+      date,
+      order: 0,
+      time: deposit.recordedAt,
+      run: () => {
+        cashCents += cents(deposit.usdAmount);
+        return null;
+      },
+    });
+  }
 
   for (const trade of snapshot.trades) {
     const date = dateOf(trade.recordedAt);
@@ -403,13 +456,17 @@ function equitySeries(snapshot: BookSnapshot): EquityPoint[] {
     if (date >= created) dates.add(date);
   }
   for (const split of snapshot.splits) if (split.date >= created) dates.add(split.date);
+  for (const deposit of snapshot.deposits) {
+    const date = dateOf(deposit.recordedAt);
+    if (date >= created) dates.add(date);
+  }
   const points = [...dates].sort().map((date) => ({
     time: Date.parse(`${date}T23:59:59.000Z`) / 1000,
     equityUsd: equityOn(snapshot, date),
   }));
   const openingTime = Math.floor(Date.parse(snapshot.createdAt) / 1000);
   const earliest = points[0]?.time;
-  return [{ time: earliest != null && earliest <= openingTime ? earliest - 60 : openingTime, equityUsd: STARTING_CASH_USD }, ...points];
+  return [{ time: earliest != null && earliest <= openingTime ? earliest - 60 : openingTime, equityUsd: snapshot.openingCashUsd }, ...points];
 }
 
 function equityOn(snapshot: BookSnapshot, date: string): number {
@@ -473,6 +530,11 @@ function latestDate(snapshot: BookSnapshot): string {
 
 function dateOf(iso: string): string {
   return iso.slice(0, 10);
+}
+
+function roundedMoney(amount: number): number | null {
+  if (!Number.isFinite(amount) || amount > 1_000_000_000_000) return null;
+  return dollars(cents(amount));
 }
 
 function cents(amount: number): number {

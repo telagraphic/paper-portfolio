@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import type { TradeSide } from "../book/book";
-import type { PageBook } from "./page-book";
+import { displaySymbol, type PageBook } from "./page-book";
 import type { SearchHit } from "../quotes/eodhd";
 import { formatTrading, formatUsd, listingKey } from "./format";
 import { MorphValue } from "./MorphValue";
@@ -71,8 +71,8 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
       setShares("");
       setMessage(
         side === "buy"
-          ? `Bought ${fields.shares.toLocaleString("en-US")} shares of ${fields.symbol}.${fields.exchange}.`
-          : `Sold ${fields.shares.toLocaleString("en-US")} shares of ${fields.symbol}.${fields.exchange}.`,
+          ? `Bought ${fields.shares.toLocaleString("en-US")} shares of ${displaySymbol(fields)}.`
+          : `Sold ${fields.shares.toLocaleString("en-US")} shares of ${displaySymbol(fields)}.`,
       );
       onBook(body, listingKey(fields));
     } catch {
@@ -136,9 +136,22 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
 
   return (
     <form className="trade-form" onSubmit={onSubmit} aria-busy={busy !== null}>
-      <p className="trade-cash">
-        Cash <MorphValue>{formatUsd(cashUsd)}</MorphValue>
-      </p>
+      <section className="book-figures trade-figures" aria-label="Order">
+        <dl>
+          <div>
+            <dt>Cash</dt>
+            <dd>
+              <MorphValue>{formatUsd(cashUsd)}</MorphValue>
+            </dd>
+          </div>
+          <div>
+            <dt>Total</dt>
+            <dd data-empty={total == null ? "true" : undefined}>
+              {total == null ? "—" : formatTrading(total, tradingCurrency)}
+            </dd>
+          </div>
+        </dl>
+      </section>
       <div className="trade-panel">
         <Segmented
           label="Trade entry"
@@ -240,9 +253,6 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
             ]}
           />
         </div>
-        <p className="trade-total">
-          Total <span data-empty={total == null ? "true" : undefined}>{total == null ? "—" : formatTrading(total, tradingCurrency)}</span>
-        </p>
         {mode === "search" && hits.length > 0 ? (
           <div className="data-table">
             <table>
@@ -264,7 +274,7 @@ export function TradeForm({ cashUsd, onBook }: TradeFormProps) {
                           {hit.name}
                         </button>
                       </th>
-                      <td>{key}</td>
+                      <td>{displaySymbol(hit)}</td>
                       <td>{hit.previousClose == null ? "—" : formatTrading(hit.previousClose, hit.tradingCurrency)}</td>
                     </tr>
                   );

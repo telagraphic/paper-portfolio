@@ -9,6 +9,8 @@ import "./equity-chart.css";
 import "./data-table.css";
 import "./listing-list.css";
 import "./listing-detail.css";
+import "./term-list.css";
+import "./admin.css";
 import "./activity-list.css";
 
 const root = document.getElementById("root");
