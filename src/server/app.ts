@@ -27,7 +27,7 @@ const FREE_DAILY_REQUESTS = 20;
 export function createApp(store: BookStore, clientDir: string, options: AppOptions = {}) {
   const now = options.now ?? (() => new Date());
   const quotes = options.quotes ?? createEodhdSource(
-    () => store.activeFeedKey() || process.env.EODHD_API_KEY || "",
+    () => store.activeFeedKey() ?? "",
     fetch,
     () => store.recordApiHit(utcDay(now())),
   );
@@ -53,6 +53,11 @@ async function handle(
   response: ServerResponse,
 ) {
   const url = new URL(request.url ?? "/", "http://localhost");
+
+  if (url.pathname === "/api/health" && request.method === "GET") {
+    sendJson(response, 200, { status: "ok" });
+    return;
+  }
 
   if (url.pathname === "/api/book" && request.method === "GET") {
     await refreshBook(store, quotes, now());
@@ -194,6 +199,7 @@ async function handle(
   }
 
   if (
+    url.pathname === "/api/health" ||
     url.pathname === "/api/book" ||
     url.pathname === "/api/trades" ||
     url.pathname === "/api/search" ||
@@ -270,6 +276,7 @@ function presentBook(store: BookStore) {
   const names = store.names();
   return {
     ...view,
+    feedKeySaved: store.activeFeedKey() != null,
     listings: view.listings.map((listing) => ({
       ...listing,
       name: names[`${listing.symbol}.${listing.exchange}`] ?? null,

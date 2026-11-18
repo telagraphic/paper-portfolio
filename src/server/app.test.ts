@@ -18,12 +18,32 @@ afterEach(async () => {
   }
 });
 
-describe("GET /api/book", () => {
-  it("returns the empty paper portfolio and omits the quote key", async () => {
-    process.env.EODHD_API_KEY = "secret-eodhd-key";
+describe("GET /api/health", () => {
+  it("answers without touching the feed", async () => {
     const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
     directories.push(directory);
     const store = openBookStore(join(directory, "book.sqlite"));
+    const server = createApp(store, directory, { quotes: quietQuotes() });
+    servers.push(server);
+    await listen(server);
+
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Expected a TCP port");
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/health`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "ok" });
+    expect(store.apiHits(new Date().toISOString().slice(0, 10))).toBe(0);
+    store.close();
+  });
+});
+
+describe("GET /api/book", () => {
+  it("returns the empty paper portfolio and omits the quote key", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const store = openBookStore(join(directory, "book.sqlite"));
+    store.addFeedKey("key-1", "secret-eodhd-key", "2026-11-06T00:00:00.000Z");
     const server = createApp(store, directory, { quotes: quietQuotes() });
     servers.push(server);
     await listen(server);
@@ -38,17 +58,50 @@ describe("GET /api/book", () => {
     expect(body.cashUsd).toBe(STARTING_CASH_USD);
     expect(body.equityUsd).toBe(STARTING_CASH_USD);
     expect(body.listings).toEqual([]);
+    expect(body.feedKeySaved).toBe(true);
     expect(JSON.stringify(body)).not.toContain("secret-eodhd-key");
     store.close();
+  });
+
+  it("ignores EODHD_API_KEY when no key is saved in Admin", async () => {
+    const previous = process.env.EODHD_API_KEY;
+    process.env.EODHD_API_KEY = "environment-eodhd-key";
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const store = openBookStore(join(directory, "book.sqlite"));
+    const server = createApp(store, directory);
+    servers.push(server);
+    await listen(server);
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("Expected a TCP port");
+
+    try {
+      const book = await (await fetch(`http://127.0.0.1:${address.port}/api/book`)).json();
+      const search = await (
+        await fetch(`http://127.0.0.1:${address.port}/api/search`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ query: "Apple" }),
+        })
+      ).json();
+
+      expect(book.feedKeySaved).toBe(false);
+      expect(search.hits).toEqual([]);
+      expect(store.apiHits(new Date().toISOString().slice(0, 10))).toBe(0);
+    } finally {
+      if (previous === undefined) delete process.env.EODHD_API_KEY;
+      else process.env.EODHD_API_KEY = previous;
+      store.close();
+    }
   });
 });
 
 describe("POST /api/trades", () => {
   it("records a manual buy and leaves the quote key out of the response", async () => {
-    process.env.EODHD_API_KEY = "secret-eodhd-key";
     const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
     directories.push(directory);
     const store = openBookStore(join(directory, "book.sqlite"));
+    store.addFeedKey("key-1", "secret-eodhd-key", "2026-11-06T00:00:00.000Z");
     const server = createApp(store, directory, { quotes: quietQuotes() });
     servers.push(server);
     await listen(server);
@@ -114,7 +167,6 @@ describe("POST /api/trades", () => {
 
 describe("search, closes, and deletion", () => {
   it("searches once and leaves the quote key out of the response", async () => {
-    process.env.EODHD_API_KEY = "secret-eodhd-key";
     let calls = 0;
     const quotes = quietQuotes();
     quotes.search = async () => {
@@ -122,6 +174,7 @@ describe("search, closes, and deletion", () => {
       return [{ symbol: "7203", exchange: "TSE", name: "Toyota", tradingCurrency: "JPY", previousClose: 2400, previousCloseDate: "2026-10-08" }];
     };
     const { port, store } = await start(quotes);
+    store.addFeedKey("key-1", "secret-eodhd-key", "2026-11-06T00:00:00.000Z");
     const response = await fetch(`http://127.0.0.1:${port}/api/search`, {
       method: "POST",
       headers: { "content-type": "application/json" },

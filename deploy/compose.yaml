@@ -1,0 +1,20 @@
+# Paper Portfolio. Start with `docker compose up -d`, then open http://127.0.0.1:3000.
+# Update with `docker compose pull && docker compose up -d` after backing up the book (see the README).
+name: paper-portfolio
+
+services:
+  paper-portfolio:
+    image: ghcr.io/telagraphic/paper-portfolio:latest
+    container_name: paper-portfolio
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_PATH: /data/book.sqlite
+    volumes:
+      - paper-portfolio:/data
+
+volumes:
+  # Deleting this volume deletes the book.
+  paper-portfolio:
+    name: paper-portfolio

@@ -4,6 +4,114 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { STARTING_CASH_USD, type Bar, type BookSnapshot, type CashDeposit, type FxClose, type Split, type Trade, type TradeSide } from "../book/book.js";
 
+// Each step raises the book file by one schema version. Append steps; never edit a shipped one.
+const MIGRATIONS: ((database: DatabaseSync) => void)[] = [
+  (database) => {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS book (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS trade (
+        id TEXT PRIMARY KEY,
+        recorded_at TEXT NOT NULL,
+        side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        trading_currency TEXT NOT NULL,
+        shares INTEGER NOT NULL,
+        fill REAL NOT NULL,
+        usd_amount REAL NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS bar (
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        session_date TEXT NOT NULL,
+        open REAL NOT NULL,
+        high REAL NOT NULL,
+        low REAL NOT NULL,
+        close REAL NOT NULL,
+        volume REAL NOT NULL,
+        PRIMARY KEY (symbol, exchange, session_date)
+      );
+      CREATE TABLE IF NOT EXISTS fx_close (
+        currency TEXT NOT NULL,
+        session_date TEXT NOT NULL,
+        usd_per_unit REAL NOT NULL,
+        PRIMARY KEY (currency, session_date)
+      );
+      CREATE TABLE IF NOT EXISTS split (
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        session_date TEXT NOT NULL,
+        numerator REAL NOT NULL,
+        denominator REAL NOT NULL,
+        PRIMARY KEY (symbol, exchange, session_date)
+      );
+      CREATE TABLE IF NOT EXISTS feed_check (
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        session_date TEXT NOT NULL,
+        PRIMARY KEY (symbol, exchange, kind, session_date)
+      );
+      CREATE TABLE IF NOT EXISTS listing_name (
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        name TEXT NOT NULL,
+        PRIMARY KEY (symbol, exchange)
+      );
+      CREATE TABLE IF NOT EXISTS setting (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS api_hit (
+        day TEXT PRIMARY KEY,
+        hits INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS feed_key (
+        id TEXT PRIMARY KEY,
+        token TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS cash_deposit (
+        id TEXT PRIMARY KEY,
+        recorded_at TEXT NOT NULL,
+        usd_amount REAL NOT NULL
+      );
+    `);
+
+    const bookColumns = database.prepare("PRAGMA table_info(book)").all() as { name: string }[];
+    if (!bookColumns.some((column) => column.name === "opening_cash_usd")) {
+      database.exec(`ALTER TABLE book ADD COLUMN opening_cash_usd REAL NOT NULL DEFAULT ${STARTING_CASH_USD}`);
+    }
+    const legacyKey = database.prepare("SELECT value FROM setting WHERE key = 'eodhd_api_key'").get() as
+      | { value: string }
+      | undefined;
+    if (legacyKey?.value) {
+      const saved = database.prepare("SELECT 1 FROM feed_key WHERE token = ?").get(legacyKey.value);
+      if (!saved) {
+        database
+          .prepare("INSERT INTO feed_key (id, token, created_at) VALUES (?, ?, ?)")
+          .run(randomUUID(), legacyKey.value, new Date().toISOString());
+      }
+      database.exec("DELETE FROM setting WHERE key = 'eodhd_api_key'");
+    }
+  },
+];
+
+export const SCHEMA_VERSION = MIGRATIONS.length;
+
+export class SchemaTooNewError extends Error {
+  constructor(filePath: string, fileVersion: number) {
+    super(
+      `${filePath} is at schema version ${fileVersion}, but this build only knows version ${SCHEMA_VERSION}. ` +
+        "Run a newer image, or restore the backup taken before the update.",
+    );
+    this.name = "SchemaTooNewError";
+  }
+}
+
 export type BookStore = {
   read(): BookSnapshot;
   append(trade: Trade): void;
@@ -43,84 +151,7 @@ type TradeRow = {
 export function openBookStore(filePath: string): BookStore {
   mkdirSync(dirname(filePath), { recursive: true });
   const database = new DatabaseSync(filePath);
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS book (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS trade (
-      id TEXT PRIMARY KEY,
-      recorded_at TEXT NOT NULL,
-      side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
-      symbol TEXT NOT NULL,
-      exchange TEXT NOT NULL,
-      trading_currency TEXT NOT NULL,
-      shares INTEGER NOT NULL,
-      fill REAL NOT NULL,
-      usd_amount REAL NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS bar (
-      symbol TEXT NOT NULL,
-      exchange TEXT NOT NULL,
-      session_date TEXT NOT NULL,
-      open REAL NOT NULL,
-      high REAL NOT NULL,
-      low REAL NOT NULL,
-      close REAL NOT NULL,
-      volume REAL NOT NULL,
-      PRIMARY KEY (symbol, exchange, session_date)
-    );
-    CREATE TABLE IF NOT EXISTS fx_close (
-      currency TEXT NOT NULL,
-      session_date TEXT NOT NULL,
-      usd_per_unit REAL NOT NULL,
-      PRIMARY KEY (currency, session_date)
-    );
-    CREATE TABLE IF NOT EXISTS split (
-      symbol TEXT NOT NULL,
-      exchange TEXT NOT NULL,
-      session_date TEXT NOT NULL,
-      numerator REAL NOT NULL,
-      denominator REAL NOT NULL,
-      PRIMARY KEY (symbol, exchange, session_date)
-    );
-    CREATE TABLE IF NOT EXISTS feed_check (
-      symbol TEXT NOT NULL,
-      exchange TEXT NOT NULL,
-      kind TEXT NOT NULL,
-      session_date TEXT NOT NULL,
-      PRIMARY KEY (symbol, exchange, kind, session_date)
-    );
-    CREATE TABLE IF NOT EXISTS listing_name (
-      symbol TEXT NOT NULL,
-      exchange TEXT NOT NULL,
-      name TEXT NOT NULL,
-      PRIMARY KEY (symbol, exchange)
-    );
-    CREATE TABLE IF NOT EXISTS setting (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS api_hit (
-      day TEXT PRIMARY KEY,
-      hits INTEGER NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS feed_key (
-      id TEXT PRIMARY KEY,
-      token TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS cash_deposit (
-      id TEXT PRIMARY KEY,
-      recorded_at TEXT NOT NULL,
-      usd_amount REAL NOT NULL
-    );
-  `);
-
-  const bookColumns = database.prepare("PRAGMA table_info(book)").all() as { name: string }[];
-  if (!bookColumns.some((column) => column.name === "opening_cash_usd")) {
-    database.exec(`ALTER TABLE book ADD COLUMN opening_cash_usd REAL NOT NULL DEFAULT ${STARTING_CASH_USD}`);
-  }
+  migrate(database, filePath);
 
   const existing = database.prepare("SELECT created_at FROM book WHERE id = 1").get() as { created_at: string } | undefined;
   if (!existing) {
@@ -180,14 +211,6 @@ export function openBookStore(filePath: string): BookStore {
   const feedKeysStatement = database.prepare("SELECT id, token, created_at FROM feed_key ORDER BY created_at DESC, id DESC");
   const insertFeedKey = database.prepare("INSERT INTO feed_key (id, token, created_at) VALUES (?, ?, ?)");
   const deleteFeedKey = database.prepare("DELETE FROM feed_key WHERE id = ?");
-  const legacyKey = readSettingStatement.get("eodhd_api_key") as { value: string } | undefined;
-  if (legacyKey?.value) {
-    const existing = feedKeysStatement.all() as { token: string }[];
-    if (!existing.some((row) => row.token === legacyKey.value)) {
-      insertFeedKey.run(randomUUID(), legacyKey.value, new Date().toISOString());
-    }
-    deleteSettingStatement.run("eodhd_api_key");
-  }
 
   return {
     read() {
@@ -345,4 +368,23 @@ export function openBookStore(filePath: string): BookStore {
       database.close();
     },
   };
+}
+
+function migrate(database: DatabaseSync, filePath: string) {
+  const { user_version: fileVersion } = database.prepare("PRAGMA user_version").get() as { user_version: number };
+  if (fileVersion > SCHEMA_VERSION) {
+    database.close();
+    throw new SchemaTooNewError(filePath, fileVersion);
+  }
+  if (fileVersion === SCHEMA_VERSION) return;
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    for (const step of MIGRATIONS.slice(fileVersion)) step(database);
+    database.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    database.close();
+    throw error;
+  }
 }

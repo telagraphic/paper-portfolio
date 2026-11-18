@@ -67,6 +67,11 @@
     line-height: 20px;
   }
 
+  .admin-note a {
+    color: var(--color-fg);
+    text-underline-offset: 3px;
+  }
+
   .admin-key {
     display: flex;
     flex-wrap: wrap;

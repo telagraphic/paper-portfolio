@@ -20,6 +20,7 @@ type FeedUsage = {
 type AdminPanelProps = {
   book: PageBook;
   onBook: (book: PageBook) => void;
+  initialTab?: AdminTab;
 };
 
 const RULES = [
@@ -29,13 +30,13 @@ const RULES = [
   ["Fill", "The price locked in is the latest close already stored, or a typed mark when no close exists."],
   ["Symbols", "A US listing is shown without .US. Any other exchange keeps its suffix once. The feed still stores the symbol and the exchange together."],
   ["Closes", "A close is requested after that exchange's session ends. US cash ends at 4:00pm New York. One request covers every session since the last stored close."],
-  ["Feed", "The free plan allows 20 requests each UTC day. The newest saved key is used, or the environment key when none are saved."],
+  ["Feed", "The free plan allows 20 requests each UTC day. The newest saved key is used. Without a saved key, nothing is requested."],
 ] as const;
 
 const openingPlaceholder = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 
-export function AdminPanel({ book, onBook }: AdminPanelProps) {
-  const [tab, setTab] = useState<AdminTab>("cash");
+export function AdminPanel({ book, onBook, initialTab = "cash" }: AdminPanelProps) {
+  const [tab, setTab] = useState<AdminTab>(initialTab);
   const [usage, setUsage] = useState<FeedUsage | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [starting, setStarting] = useState("");
@@ -133,6 +134,7 @@ export function AdminPanel({ book, onBook }: AdminPanelProps) {
       return;
     }
     setUsage((await response.json()) as FeedUsage);
+    onBook({ ...book, feedKeySaved: true });
     setApiKey("");
     setNotice("Saved. The next request uses this key.");
   }
@@ -148,7 +150,8 @@ export function AdminPanel({ book, onBook }: AdminPanelProps) {
     }
     const next = (await response.json()) as FeedUsage;
     setUsage(next);
-    setNotice(next.keys.length === 0 ? "Removed. Requests use the environment key." : "Removed.");
+    onBook({ ...book, feedKeySaved: next.keys.length > 0 });
+    setNotice(next.keys.length === 0 ? "Removed. Search and trades need a key again." : "Removed.");
   }
 
   const keys = usage?.keys ?? [];
@@ -207,6 +210,15 @@ export function AdminPanel({ book, onBook }: AdminPanelProps) {
         ) : null}
         {tab === "key" ? (
           <>
+            {keys.length === 0 ? (
+              <p className="admin-note">
+                Search, closes, and trades need an EODHD API key.{" "}
+                <a href="https://eodhd.com/" target="_blank" rel="noreferrer">
+                  Sign up at EODHD
+                </a>
+                , copy the API key from your account, and save it below. The free plan is enough.
+              </p>
+            ) : null}
             <div className="data-table">
               <table>
                 <caption>Feed requests</caption>
@@ -263,7 +275,7 @@ export function AdminPanel({ book, onBook }: AdminPanelProps) {
                   {keys.length === 0 ? (
                     <tr>
                       <td className="admin-empty" colSpan={3}>
-                        No key is saved. Requests use the environment key.
+                        No key is saved. Search and trades stay off until one is.
                       </td>
                     </tr>
                   ) : (
@@ -283,7 +295,7 @@ export function AdminPanel({ book, onBook }: AdminPanelProps) {
               </table>
             </div>
             <p className="admin-note">
-              The newest saved key is sent on the next quote, search, or history request. Remove it to use the next saved key, or the environment key when none remain.
+              The newest saved key is sent on the next quote, search, or history request. Remove it to use the next saved key.
             </p>
           </>
         ) : null}

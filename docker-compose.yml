@@ -1,15 +1,20 @@
+# Developer path: builds the image from this repository.
+# It opens the same paper-portfolio volume as deploy/compose.yaml, so it uses your real book.
+name: paper-portfolio
+
 services:
-  app:
+  paper-portfolio:
     build: .
+    image: paper-portfolio:dev
+    container_name: paper-portfolio
+    restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
-      PORT: 3000
       DATABASE_PATH: /data/book.sqlite
-      CLIENT_DIR: /app/dist/client
-      EODHD_API_KEY: ${EODHD_API_KEY:-}
     volumes:
-      - book:/data
+      - paper-portfolio:/data
 
 volumes:
-  book:
+  paper-portfolio:
+    name: paper-portfolio

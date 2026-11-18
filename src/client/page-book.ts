@@ -2,7 +2,7 @@ import type { BookView, ListingView } from "../book/book";
 
 export type PageListing = ListingView & { name: string | null };
 
-export type PageBook = Omit<BookView, "listings"> & { listings: PageListing[] };
+export type PageBook = Omit<BookView, "listings"> & { listings: PageListing[]; feedKeySaved: boolean };
 
 export function displayName(listing: { symbol: string; name: string | null }) {
   return distinctName(listing) ?? listing.symbol;

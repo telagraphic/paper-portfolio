@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { STARTING_CASH_USD, applyTrade, viewBook } from "../book/book.js";
-import { openBookStore } from "./book-store.js";
+import { SCHEMA_VERSION, SchemaTooNewError, openBookStore } from "./book-store.js";
 
 const directories: string[] = [];
 
@@ -110,5 +111,68 @@ describe("openBookStore", () => {
     expect(view.openingCashUsd).toBe(125_000);
     expect(view.cashUsd).toBe(127_500);
     second.close();
+  });
+
+  it("stamps a new file with the current schema version", () => {
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const filePath = join(directory, "book.sqlite");
+
+    openBookStore(filePath).close();
+
+    const raw = new DatabaseSync(filePath);
+    expect(raw.prepare("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION });
+    raw.close();
+  });
+
+  it("upgrades a file written before the schema had a version", () => {
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const filePath = join(directory, "book.sqlite");
+
+    const raw = new DatabaseSync(filePath);
+    raw.exec(`
+      CREATE TABLE book (id INTEGER PRIMARY KEY CHECK (id = 1), created_at TEXT NOT NULL);
+      INSERT INTO book (id, created_at) VALUES (1, '2026-11-01T00:00:00.000Z');
+      CREATE TABLE trade (
+        id TEXT PRIMARY KEY,
+        recorded_at TEXT NOT NULL,
+        side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+        symbol TEXT NOT NULL,
+        exchange TEXT NOT NULL,
+        trading_currency TEXT NOT NULL,
+        shares INTEGER NOT NULL,
+        fill REAL NOT NULL,
+        usd_amount REAL NOT NULL
+      );
+      INSERT INTO trade VALUES ('t1', '2026-11-03T16:00:00.000Z', 'buy', 'AAPL', 'US', 'USD', 10, 180, 1800);
+      CREATE TABLE setting (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO setting VALUES ('eodhd_api_key', 'legacy-key-9999');
+    `);
+    raw.close();
+
+    const store = openBookStore(filePath);
+    expect(store.read().createdAt).toBe("2026-11-01T00:00:00.000Z");
+    expect(viewBook(store.read()).cashUsd).toBe(98_200);
+    expect(store.activeFeedKey()).toBe("legacy-key-9999");
+    expect(store.readSetting("eodhd_api_key")).toBeNull();
+    store.close();
+  });
+
+  it("refuses a file from a newer build and leaves it untouched", () => {
+    const directory = mkdtempSync(join(tmpdir(), "paper-portfolio-"));
+    directories.push(directory);
+    const filePath = join(directory, "book.sqlite");
+
+    openBookStore(filePath).close();
+    const raw = new DatabaseSync(filePath);
+    raw.exec(`PRAGMA user_version = ${SCHEMA_VERSION + 1}`);
+    raw.close();
+
+    expect(() => openBookStore(filePath)).toThrow(SchemaTooNewError);
+
+    const after = new DatabaseSync(filePath);
+    expect(after.prepare("PRAGMA user_version").get()).toEqual({ user_version: SCHEMA_VERSION + 1 });
+    after.close();
   });
 });
