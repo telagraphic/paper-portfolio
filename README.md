@@ -83,20 +83,6 @@ docker compose up -d --build
 
 > **⚑ Port 3000.** Something else on this machine already listens on 3000 (a `bun` process). Stop it, or the container cannot publish its port.
 
-### ⚑ One-time move from the old setup
-
-The setup before ADR 0010 used a container called `paper-portfolio` built from `stock-caster-app`, and kept the book on a volume called `stock-caster_book`. That file is owned by root, and the new image runs as `node` (uid 1000). Move it once:
-
-```sh
-docker rm paper-portfolio                       # the old stopped container; its name is now taken by Compose
-docker volume create paper-portfolio
-docker run --rm -v stock-caster_book:/from:ro -v paper-portfolio:/to alpine \
-  sh -c 'cp -a /from/. /to/ && chown -R 1000:1000 /to'
-docker compose up -d --build
-```
-
-Check the book in the page, then delete `stock-caster_book` when you no longer need it. Without the `chown`, the server stops with `attempt to write a readonly database`.
-
 ### Schema changes
 
 The book file carries its version in `PRAGMA user_version`. `MIGRATIONS` in `src/store/book-store.ts` lists the steps. On open, the store runs every step above the file's version in one transaction. To change the schema, append a step. Never edit a step that has already shipped. A file from a newer build is refused, and the server exits with a message naming both versions.
