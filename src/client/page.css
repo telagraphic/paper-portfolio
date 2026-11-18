@@ -76,6 +76,17 @@
     background: var(--color-surface);
   }
 
+  .page-tabs-nav {
+    height: var(--space-44);
+  }
+
+  .page-tabs-nav .page-tab {
+    min-height: 38px;
+    padding: 0 18px;
+    font-size: var(--font-size-nav);
+    line-height: var(--line-height-nav);
+  }
+
   .page-tabs-subtle {
     background: var(--color-selected);
     border: 1px solid var(--color-line);

@@ -13,6 +13,7 @@
     "@number-flow/react": "^0.6.2",
     "geist": "^1.7.0",
     "lightweight-charts": "^5.2.1",
+    "motion": "^14.9.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "torph": "^0.1.3"

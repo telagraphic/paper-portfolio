@@ -1,3 +1,10 @@
+import { AnimatePresence, motion, useReducedMotion, type Transition } from "motion/react";
+import { useState } from "react";
+import { TextMorph } from "torph/react";
+
+const GLIDE = [0.32, 0.72, 0, 1] as const;
+const SOFT = [0.4, 0, 0.2, 1] as const;
+
 const terms = [
   {
     term: "Avg cost",
@@ -49,6 +56,48 @@ const terms = [
 ];
 
 export function TermList() {
+  const [open, setOpen] = useState(false);
+  const reduceMotion = useReducedMotion();
+  // Same feel as the trade form's fields: make room, then fade in; fade out, then give the room back.
+  const show: Transition = reduceMotion
+    ? { duration: 0 }
+    : { height: { duration: 0.48, ease: GLIDE }, opacity: { duration: 0.38, delay: 0.12, ease: SOFT } };
+  const hide: Transition = reduceMotion
+    ? { duration: 0 }
+    : { height: { duration: 0.42, delay: 0.1, ease: GLIDE }, opacity: { duration: 0.26, ease: SOFT } };
+
+  return (
+    <section className="term-list" aria-label="Listing terms">
+      <button
+        type="button"
+        className="term-toggle"
+        aria-expanded={open}
+        aria-controls="term-table"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <TextMorph duration={380} ease="cubic-bezier(0.4, 0, 0.2, 1)">
+          {open ? "Hide listing terms" : "Show listing terms"}
+        </TextMorph>
+      </button>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            key="terms"
+            id="term-table"
+            className="term-reveal"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1, transition: show }}
+            exit={{ height: 0, opacity: 0, transition: hide }}
+          >
+            <TermTable />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </section>
+  );
+}
+
+function TermTable() {
   return (
     <div className="term-table data-table">
       <table>

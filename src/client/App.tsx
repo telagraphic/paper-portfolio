@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ActivityList } from "./ActivityList";
 import { AdminPanel } from "./AdminPanel";
 import { BookFigures } from "./BookFigures";
@@ -7,16 +7,28 @@ import { listingKey } from "./format";
 import { ListingDetail, ListingFigures } from "./ListingDetail";
 import { ListingList } from "./ListingList";
 import { formatCloseDate, latestCloseDate, type PageBook } from "./page-book";
-import { PageTabs, type PageTab } from "./PageTabs";
+import { PageTabs, type AdminTab, type PageTab } from "./PageTabs";
 import { TermList } from "./TermList";
 import { TradeForm } from "./TradeForm";
 
 export function App() {
   const [book, setBook] = useState<PageBook | null>(null);
   const [tab, setTab] = useState<PageTab>("totals");
+  const [adminTab, setAdminTab] = useState<AdminTab>("cash");
   const [selected, setSelected] = useState("");
   const [error, setError] = useState("");
   const knownListings = useRef<Set<string> | null>(null);
+  const [head, setHead] = useState<HTMLElement | null>(null);
+  const [navWidth, setNavWidth] = useState<number | null>(null);
+
+  // Panels that line up with the menu, like the trade card, read its width from --nav-width.
+  useEffect(() => {
+    const nav = head?.querySelector<HTMLElement>(".page-tabs");
+    if (!nav) return;
+    const observer = new ResizeObserver(() => setNavWidth(nav.offsetWidth));
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, [head]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -60,8 +72,8 @@ export function App() {
   const updated = latestCloseDate(book.listings);
 
   return (
-    <main className="page">
-      <header className="page-head">
+    <main className="page" style={navWidth ? ({ "--nav-width": `${navWidth}px` } as CSSProperties) : undefined}>
+      <header className="page-head" ref={setHead}>
         <div className="page-title-row">
           <h1 className="page-title">Paper Portfolio</h1>
           {updated ? (
@@ -70,7 +82,13 @@ export function App() {
             </p>
           ) : null}
         </div>
-        <PageTabs value={tab} onChange={setTab} />
+        <PageTabs
+          value={tab}
+          onChange={(next) => {
+            setAdminTab("cash");
+            setTab(next);
+          }}
+        />
       </header>
       <div key={tab} className="tab-panel" id={`page-panel-${tab}`} role="tabpanel" aria-labelledby={`page-tab-${tab}`}>
         {tab === "totals" ? (
@@ -99,16 +117,22 @@ export function App() {
         {tab === "trade" ? (
           <TradeForm
             cashUsd={book.cashUsd}
+            listings={book.listings}
+            feedKeySaved={book.feedKeySaved}
             onBook={(next, key) => {
               setBook(next);
               setSelected(key);
+            }}
+            onAddKey={() => {
+              setAdminTab("key");
+              setTab("admin");
             }}
           />
         ) : null}
         {tab === "history" ? (
           <ActivityList listings={book.listings} activity={book.activity} />
         ) : null}
-        {tab === "admin" ? <AdminPanel book={book} onBook={setBook} /> : null}
+        {tab === "admin" ? <AdminPanel book={book} onBook={setBook} initialTab={adminTab} /> : null}
       </div>
       <p className="page-credit">
         <a href="https://www.tradingview.com/">Charts by TradingView</a>

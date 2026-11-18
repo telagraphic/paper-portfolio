@@ -1,8 +1,57 @@
 @layer components {
+  /* Left: the order itself. Right: what it costs, and the listings a buy search finds.
+     The form stays anchored at the top with a fixed left column, so switching Buy, Sell,
+     Search, or Manual only moves what sits below it. */
   .trade-form {
+    display: grid;
+    grid-template-columns: min(var(--nav-width, 468px), 100%) minmax(0, 1fr);
+    gap: var(--space-72);
+    align-items: start;
+    width: 100%;
+  }
+
+  /* The order sits on the same white, rounded surface as the tab tracks. */
+  .trade-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-12);
+    min-width: 0;
+    padding: var(--space-24);
+    border-radius: var(--radius-track);
+    background: var(--color-surface);
+  }
+
+  /* Both mode groups share one line, half each, so they read as settings rather than fields. */
+  .trade-modes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-12);
+  }
+
+  .trade-modes .trade-segment {
+    display: flex;
+    align-self: stretch;
+    background: var(--color-selected);
+  }
+
+  /* Each button takes half its group. This must outrank the content-sized .trade-segment button rule. */
+  .trade-form .trade-modes .trade-segment button {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .trade-side {
     display: flex;
     flex-direction: column;
     gap: var(--space-24);
+    min-width: 0;
+  }
+
+  @media (max-width: 800px) {
+    .trade-form {
+      grid-template-columns: min(var(--nav-width, 100%), 100%);
+      gap: var(--space-44);
+    }
   }
 
   .book-figures.trade-figures {
@@ -30,12 +79,6 @@
     color: var(--color-muted);
   }
 
-  .trade-panel {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-12);
-  }
 
   .trade-segment {
     position: relative;
@@ -49,9 +92,6 @@
     background: var(--color-surface);
   }
 
-  .trade-row > .trade-segment {
-    align-self: flex-end;
-  }
 
   .trade-segment-pill {
     position: absolute;
@@ -66,22 +106,23 @@
 
   .trade-segment[data-ready="true"] .trade-segment-pill {
     opacity: 1;
-    transition-property: left, width;
+    transition-property: left, width, background-color;
     transition-duration: 200ms;
     transition-timing-function: ease-out;
   }
 
-  .trade-row {
+  /* Relative so a field fading out can sit over the one fading in. */
+  .trade-fields {
+    position: relative;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--space-12);
-    align-items: end;
     width: 100%;
+    margin-top: var(--space-8);
   }
 
   .trade-form label {
     display: flex;
-    flex: 1 1 9rem;
     flex-direction: column;
     gap: var(--space-8);
     min-width: 0;
@@ -91,23 +132,31 @@
     white-space: nowrap;
   }
 
-  .trade-form .trade-symbol {
-    flex-grow: 1.4;
-  }
-
+  /* Fields are light gray on the white card, and their border darkens on focus or press. */
   .trade-form input,
   .trade-form select {
     width: 100%;
     min-width: 0;
     min-height: 44px;
     padding: var(--space-8) var(--space-12);
-    border: 0;
+    border: 1px solid transparent;
     border-radius: var(--radius-track);
-    background: var(--color-surface);
+    background: var(--color-bg);
+    transition-property: border-color, color;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
     color: var(--color-fg);
     font: inherit;
     font-size: 14px;
     line-height: 18px;
+  }
+
+  /* After an order lands, the typed values fade out in place before the fields empty. */
+  .trade-form[data-clearing="true"] .trade-fields input,
+  .trade-form[data-clearing="true"] .trade-fields select {
+    color: transparent;
+    transition-duration: 280ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .trade-form input::placeholder {
@@ -136,8 +185,65 @@
     scale: 0.96;
   }
 
+  .trade-form .trade-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    overflow: hidden;
+    border-radius: var(--radius-track);
+  }
+
+  .trade-form .trade-submit[aria-busy="true"] {
+    opacity: 1;
+  }
+
+  .trade-submit-slot {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+    height: 18px;
+  }
+
+  .trade-submit-icon {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .trade-submit-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .trade-submit-spinner {
+    animation: trade-spin 700ms linear infinite;
+  }
+
+  /* Letters entering and leaving the morph fade at the label's edges instead of clipping. */
+  .trade-submit-label {
+    --trade-label-mask: 16px;
+    padding: 0 var(--trade-label-mask);
+    margin: 0 calc(-1 * var(--trade-label-mask));
+    white-space: nowrap;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--trade-label-mask),
+      black calc(100% - var(--trade-label-mask)),
+      transparent
+    );
+  }
+
   .trade-form button:disabled {
     cursor: wait;
+  }
+
+  .trade-form[data-key="missing"] button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 
   .trade-form .trade-search {
@@ -147,8 +253,12 @@
     min-width: 0;
     min-height: 44px;
     padding: 2px 2px 2px var(--space-12);
+    border: 1px solid transparent;
     border-radius: var(--radius-track);
-    background: var(--color-surface);
+    background: var(--color-bg);
+    transition-property: border-color;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
   }
 
   .trade-form .trade-search input {
@@ -156,6 +266,7 @@
     width: auto;
     min-height: 0;
     padding: 0;
+    border: 0;
     border-radius: 0;
     background: transparent;
   }
@@ -173,9 +284,19 @@
     outline: none;
   }
 
-  .trade-form .trade-search:focus-within {
-    outline: 2px solid var(--color-fg);
-    outline-offset: 2px;
+  .trade-form .trade-search:focus-within,
+  .trade-form .trade-search:active,
+  .trade-form input:focus,
+  .trade-form input:active,
+  .trade-form select:focus,
+  .trade-form select:active {
+    border-color: var(--color-fg);
+    outline: none;
+  }
+
+  .trade-form .trade-search input:focus,
+  .trade-form .trade-search input:active {
+    border-color: transparent;
   }
 
   .trade-form .trade-segment button {
@@ -198,12 +319,73 @@
     color: var(--color-button-label);
   }
 
+  /* Buy and Sell take the same green and red as the side pills on Totals and History. */
+  .trade-segment[data-tone="side"][data-value="buy"] .trade-segment-pill {
+    background: var(--color-up);
+  }
+
+  .trade-segment[data-tone="side"][data-value="buy"] button[data-selected="true"] {
+    color: var(--color-up-pale);
+  }
+
+  .trade-segment[data-tone="side"][data-value="sell"] .trade-segment-pill {
+    background: var(--color-down);
+  }
+
+  .trade-segment[data-tone="side"][data-value="sell"] button[data-selected="true"] {
+    color: var(--color-display);
+  }
+
+  .trade-form .trade-segment .trade-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    z-index: 2;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--color-button);
+    color: var(--color-button-label);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    translate: -50% 2px;
+    transition-property: opacity, translate;
+    transition-duration: 150ms;
+    transition-timing-function: ease-out;
+  }
+
+  .trade-form .trade-segment button:hover .trade-tooltip,
+  .trade-form .trade-segment button:focus-visible .trade-tooltip {
+    opacity: 1;
+    translate: -50% 0;
+    transition-delay: 300ms;
+  }
+
+  .trade-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-12);
+  }
+
+  .trade-label-row a {
+    color: var(--color-fg);
+    text-underline-offset: 3px;
+  }
+
   .trade-form .trade-segment button:active:not(:disabled) {
     scale: 1;
   }
 
-  .trade-form input:focus-visible,
-  .trade-form select:focus-visible,
+  /* Sell always picks from the book, so Search and Manual sit out. */
+  .trade-form .trade-segment button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
   .trade-form button:focus-visible {
     outline: 2px solid var(--color-fg);
     outline-offset: 2px;
@@ -231,6 +413,19 @@
     text-wrap: pretty;
   }
 
+  .trade-form .trade-key-note button {
+    min-height: 0;
+    padding: 0;
+    border-radius: 0;
+    border: 0;
+    background: none;
+    color: var(--color-fg);
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
   .trade-error {
     margin: 0;
     color: var(--color-down-deep);
@@ -245,6 +440,12 @@
 
   .trade-form button[aria-busy="true"] {
     opacity: 0.72;
+  }
+
+  @keyframes trade-spin {
+    to {
+      rotate: 360deg;
+    }
   }
 
   @keyframes trade-in {
@@ -262,7 +463,12 @@
     .trade-error,
     .trade-status,
     .trade-note,
+    .trade-submit-spinner,
     .trade-segment[data-ready="true"] .trade-segment-pill,
+    .trade-form .trade-segment .trade-tooltip,
+    .trade-form input,
+    .trade-form select,
+    .trade-form .trade-search,
     .trade-form .trade-segment button,
     .trade-form button {
       animation: none;

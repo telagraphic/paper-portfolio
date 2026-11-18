@@ -30,6 +30,8 @@ type TabsProps<T extends string> = {
   label: string;
   idPrefix: string;
   tone?: "solid" | "subtle";
+  /** "nav" is the page menu, a step larger than the tabs inside a panel. */
+  size?: "default" | "nav";
 };
 
 export function Tabs<T extends string>({
@@ -39,6 +41,7 @@ export function Tabs<T extends string>({
   label,
   idPrefix,
   tone = "solid",
+  size = "default",
 }: TabsProps<T>) {
   const listRef = useRef<HTMLDivElement>(null);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -67,7 +70,9 @@ export function Tabs<T extends string>({
   return (
     <div
       ref={listRef}
-      className={tone === "subtle" ? "page-tabs page-tabs-subtle" : "page-tabs"}
+      className={["page-tabs", tone === "subtle" && "page-tabs-subtle", size === "nav" && "page-tabs-nav"]
+        .filter(Boolean)
+        .join(" ")}
       role="tablist"
       aria-label={label}
       data-ready={ready ? "true" : "false"}
@@ -109,5 +114,5 @@ type PageTabsProps = {
 };
 
 export function PageTabs({ value, onChange }: PageTabsProps) {
-  return <Tabs tabs={pageTabs} value={value} onChange={onChange} label="Portfolio" idPrefix="page" />;
+  return <Tabs tabs={pageTabs} value={value} onChange={onChange} label="Portfolio" idPrefix="page" size="nav" />;
 }
